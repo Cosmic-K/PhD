@@ -106,6 +106,7 @@ def show_im(data,index=0,crop=(None,None,None,None),col=('Greys_r',0)) :
     # where i is 1 or 0 for sunpy or matplotlib library respectively.
     # if color string does not match library default is used, currently no exception for this.
     
+   
     
     c,i=col
     
@@ -128,7 +129,7 @@ def show_im(data,index=0,crop=(None,None,None,None),col=('Greys_r',0)) :
     
         color = getattr(cmm,c)
         
-        
+    pylab.figure()
     pylab.imshow(np.flipud(data[index][y1:y2,x1:x2]),cmap=color,extent=scale)
 
 
@@ -144,39 +145,83 @@ def save(filename='image.png') :
     plt.savefig(filename,format=value,dpi=1000)
 
 
-def cross_cut(data,cood,index=0) :
+def cross_cut(data,cood) :
     # Use whole numbers for data points.
+    # coord is tuple of (x1,y1,x2,y2)
+    cc=[]
+    timeseries=[]
+    #print np.sqrt(float(cood[3]-cood[1])**2+float(cood[2]-cood[0])**2)
+    for index in np.arange(0,len(data),1):
     
-    for i in cood:
-        if type(i)==float in cood:
-            print 'Please use integer coordiates.'
+    
+        for i in cood:
+            if type(i)==float in cood:
+                print 'Please use integer coordiates.'
+                sys.exit()
+
+        if cood[2]-cood[0]==0 and cood[3]-cood[1]==0 :
+            #single point
+            print 'Please select more than one point.'
             sys.exit()
 
-    #length = abs(sqrt((cood[1]-cood[0])**2+(cood[3]-cood[2])**2))
 
-    grad = float((cood[3]-cood[1]))/float((cood[2]-cood[0]))
-
-    inter = float(-cood[0])*grad+cood[1]
-
-    if cood[0]>cood[2]:
-
-        x=np.arange(cood[2],cood[0],1)+1
-
-    elif cood[2]>cood[0]:
+        if cood[2]-cood[0]==0 and cood[3]-cood[1]!=0 :
+            # vertical line
         
-        x=np.arange(cood[0],cood[2],1)+1
+            if cood[1]<cood[3]:
+                y = np.arange(cood[1],cood[3],1)+1
+            elif cood[1]>cood[3]:
+                y = np.arange(cood[3],cood[1],1)+1
+        
+            x=[cood[0]]*len(y)
+
+            for j in y:
+                cc.append(data[index][x[0]][j])
+
+
+        elif cood[3]-cood[1]==0 and cood[2]-cood[0]!=0:
+        # horizontal line
+        
     
-    y=grad*x+inter
+            if cood[0]<cood[2]:
+                x = np.arange(cood[0],cood[2],1)+1
+            elif cood[0]>cood[2]:
+                x = np.arange(cood[2],cood[0],1)+1
+
+            y=[cood[1]]*len(x)
+        
+            for i in x:
+                cc.append(data[index][i][y[0]])
+
+
+        elif cood[2]-cood[0]!=0 and cood[3]-cood[1]!=0:
+        #diagnol line
+            grad = float((cood[3]-cood[1]))/float((cood[2]-cood[0]))
+
+            inter = float(-cood[0])*grad+cood[1]
+
+            if cood[0]>cood[2]:
+
+                x=np.arange(cood[2],cood[0],1)+1
+
+            elif cood[2]>cood[0]:
+        
+                x=np.arange(cood[0],cood[2],1)+1
+    
+            y=grad*x+inter
+
+            for i,j in itertools.izip(x,y):
+                    cc.append(data[index][i][j])
+                
+        timeseries.append(cc)
+    
+    
+    # instead make array size x,y shove cc in it
+    #imshow(a.T,cmap=cm.gist_heat)
 
     plt.plot(x,y)
-
-    cc=[]
     
-    for i,j in itertools.izip(x,y):
-        cc.append(data[index][i][j])
-
-
-    return cc
+    return timeseries
 
 def fit():
     pass
@@ -184,4 +229,8 @@ def time_series():
     pass
 def power_spectra():
     pass
+def perp_cuts():
+    pass
+
+
 
