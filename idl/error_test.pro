@@ -10,7 +10,7 @@
 ;multiplots,overploting histograms
 
 
-;CALL: error_test,data=data,darks=darks,flats=flats
+;CALL: error_test,data=data;,darks=darks,flats=flats
 
 ;PURPOSE: Compare noise estimates in astronomical data with modelled noise to check for discprencies.
 
@@ -19,7 +19,7 @@
 ;        flat: 2D array flat frame data.
 
 
-pro error_test, data=data,darks=darks,flat=flat
+pro error_test, data=data;,darks=darks,flat=flat
 
 
 ;Darks and flats cropped to match the cropped data,
@@ -36,98 +36,95 @@ sz=size(data)
 
 ;POISSON NOISE
 
-poisson_noise = fltarr(sz(1),sz(2),10)
+;poisson_noise = fltarr(sz(1),sz(2),10)
 
 
 ;POSSION NOISE OVER TEN FRAMES FOR TIME VARIENCE
 
-FOR i=0,9 DO BEGIN
+;FOR i=0,9 DO BEGIN
 
-poisson_noise(*,*,i) = poidev(data(*,*,i))-data(*,*,i)
+;poisson_noise(*,*,i) = poidev(data(*,*,i))-data(*,*,i)
 
-ENDFOR
+;ENDFOR
 
 
 
 ;SIGMA ESTIMATE FOR DARKS
 
-plothist, darks,xhist,yhist,/AUTOBIN,/NOPLOT
+;plothist, darks,xhist,yhist,/AUTOBIN,/NOPLOT
 
-est=[max(yhist,I),I,5]
+;est=[max(yhist,I),I,5]
 
-fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
+;fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
 
-sigma_dark=coeff(2)
+;sigma_dark=coeff(2)
 
+;a=string(coeff(2))
+;a=strtrim(a,1)
+;b=string(error(2))
+;b=strtrim(b,1)
 
-a=string(coeff(2))
-a=strtrim(a,1)
-b=string(error(2))
-b=strtrim(b,1)
+;print,'METHOD 1.'
+;print,'MODELLED NOISE FROM FLAT, DARKS AND POIDEV COMPARED WITH FRAME BY FRAME SUBTRACTION.'
 
-print,'METHOD 1.'
-print,'MODELLED NOISE FROM FLAT, DARKS AND POIDEV COMPARED WITH FRAME BY FRAME SUBTRACTION.'
-
-print,'Sigma_dark:'+' '+a+' '+'+/-'+' '+b
-
-
+;print,'Sigma_dark:'+' '+a+' '+'+/-'+' '+b
 
 ;SIGMA ESTIMATE FOR FLAT
 
-plothist, flat,xhist,yhist,/AUTOBIN,/NOPLOT
+;plothist, flat,xhist,yhist,/AUTOBIN,/NOPLOT
 
-est=[max(yhist,I),150,50]
+;est=[max(yhist,I),150,50]
 
-fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
+;fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
 
-sigma_flat=coeff(2)
+;sigma_flat=coeff(2)
 
-a=string(coeff(2))
-a=strtrim(a,1)
-b=string(error(2))
-b=strtrim(b,1)
+;a=string(coeff(2))
+;a=strtrim(a,1)
+;b=string(error(2))
+;b=strtrim(b,1)
 
-print, 'Sigma flat:'+' '+a+' '+'+/-'+' '+b
+;print, 'Sigma flat:'+' '+a+' '+'+/-'+' '+b
 
 
 
 
 ;ADDING DARK AND FLAT IN QUADRATURE THEN ADDING GAUSSIAN NOISE TO POSSION NOISE
 
-sigma_tot = sqrt((sigma_dark^2)+(sigma_flat^2))
+;sigma_tot = sqrt((sigma_dark^2)+(sigma_flat^2))
 
 
-print, 'Sigma total:', sigma_tot
+;print, 'Sigma total:', sigma_tot
 
 
 ;NOISE OVER TEN FRAMES
 
-gauss_noisefd = fltarr(sz(1),sz(2),10)
+;gauss_noisefd = fltarr(sz(1),sz(2),10)
 
-FOR i=0,9 DO BEGIN
+;FOR i=0,9 DO BEGIN
 
-gauss_noisefd(*,*,i)=sigma_tot*randomn(seed, sz(1),sz(2))
+;gauss_noisefd(*,*,i)=sigma_tot*randomn(seed, sz(1),sz(2))
 
-ENDFOR
+;ENDFOR
 
-tot_noise_av = poisson_noise+gauss_noisefd
+;tot_noise_av = poisson_noise+gauss_noisefd
 
-plothist, tot_noise_av,xhist,yhist,/fill,fcolor='blue',color='blue',axiscolor='black',xtitle='Total data noise over 10 frames.',ytitle='Frequency.',/autobin,charsize=1,/noplot
+;plothist, tot_noise_av,xhist,yhist,/fill,fcolor='blue',color='blue',axiscolor='black',xtitle='Total data noise over 10 frames.',ytitle='Frequency.',/autobin,charsize=1,/noplot
 
-est=[max(yhist),0,200]
+;est=[max(yhist),0,200]
 
-fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
+;fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
 
 ;loadct,2
 
 ;oplot,xhist,fit,color='100',thick=7,linestyle=1
 
-a=string(coeff(2))
-a=strtrim(a,1)
-b=string(error(2))
-b=strtrim(b,1)
+;a=string(coeff(2))
+;a=strtrim(a,1)
+;b=string(error(2))
+;b=strtrim(b,1)
 
-print,'Sigma from 10 frame modelled data noise.'+' '+a+' '+'+/-'+' '+b
+;print,'Sigma from 10 frame modelled data noise.'+' '+a+' '+'+/-'+' '+b
 
 
 
@@ -141,15 +138,17 @@ total_frame(*,*,i)=data(*,*,i)-data(*,*,(i+1))
 
 ENDFOR
 
-plothist, total_frame,xhist,yhist,/AUTOBIN, /fill,fcolor='blue',color='blue',axiscolor='black',xtitle=' Frame diff over 10 frames.',ytitle='Frequency.',charsize=1,/noplot
+window,0
 
-est=[max(yhist),0,150]
+plothist, total_frame,xhist,yhist,/AUTOBIN, /fill,fcolor='blue',color='blue',axiscolor='white',xtitle=' Frame diff over 10 frames.',ytitle='Frequency.',charsize=1
+
+est=[max(yhist),0,1500]
 
 fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
 
-;loadct,2
+loadct,2
 
-;oplot,xhist,fit,color='100',thick=7,linestyle=1
+oplot,xhist,fit,color='100',thick=7,linestyle=1
 
 
 a=string(coeff(2))
@@ -172,8 +171,8 @@ print,'Sigma from histogram gaussian fit of total 10 frame difference:'+' '+a+' 
 
 ;METHOD 2 OF NOISE ESTIMATE
 
-print, 'METHOD 2'
-print, 'MODELLED NOISE FROM DATA POISSON ERRORS, DARK AND FLAT COMPARED WITH STARK METHOD(&ATROUS)'
+;print, 'METHOD 2'
+;print, 'MODELLED NOISE FROM DATA POISSON ERRORS, DARK AND FLAT COMPARED WITH STARK METHOD(&ATROUS)'
 
 
 ;MODELLED GAUSSIAN NOISE FROM DATA-STARK
@@ -186,15 +185,20 @@ fil_im(*,*,i) = data(*,*,i)-smooth(data(*,*,i),[2,2],/edge_truncate)
 
 ENDFOR
 
-plothist, fil_im,xhist1,yhist1,axiscolor='black',xtitle='Filted plot intensity.',ytitle='Frequency.',/autobin,/noplot,charsize=1
+window,1
 
-est1=[max(yhist1),0,10]
+loadct,0
+
+plothist, fil_im,xhist1,yhist1,axiscolor='white',xtitle='Filtered velocity over ten frames.',ytitle='Frequency.',/autobin,charsize=1
+
+est1=[max(yhist1),0,1000]
 
 fit1 = gaussfit(xhist1,yhist1,coeff1,sigma=error1, estimates=est1,nterms=3)
 
-;loadct,2
+loadct,2
 
-;oplot,xhist1,fit1,color='100',thick=7,linestyle=1
+oplot,xhist1,fit1,color='100',thick=7,linestyle=1
+
 
 
 ;MODELLED NOISE FROM POSSION PART
@@ -206,31 +210,31 @@ fit1 = gaussfit(xhist1,yhist1,coeff1,sigma=error1, estimates=est1,nterms=3)
 
 
 
-mod_noise=fltarr(sz(1),sz(2),10)
+;mod_noise=fltarr(sz(1),sz(2),10)
 
-FOR i=0,9 DO BEGIN
+;FOR i=0,9 DO BEGIN
 
-tot_sigma=sqrt(abs(data(*,*,i))+sigma_dark^2+sigma_flat^2)
+;tot_sigma=sqrt(abs(data(*,*,i))+sigma_dark^2+sigma_flat^2)
 
-mod_noise(*,*,i)=tot_sigma*randomn(seed,sz(1),sz(2))
+;mod_noise(*,*,i)=tot_sigma*randomn(seed,sz(1),sz(2))
 
-ENDFOR
+;ENDFOR
 
 
 
-plothist, mod_noise,xhist,yhist,axiscolor='black',xtitle='Total data noise single frame.',ytitle='Frequency.',/autobin,/noplot,charsize=1
+;plothist, mod_noise,xhist,yhist,axiscolor='black',xtitle='Total data noise single frame.',ytitle='Frequency.',/autobin,/noplot,charsize=1
 
-est=[max(yhist),0,10]
+;est=[max(yhist),0,10]
 
-fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
+;fit = gaussfit(xhist,yhist,coeff,sigma=error, estimates=est,nterms=3)
 
 ;oplot,xhist,fit,color='100',thick=7,linestyle=1
 
-a=string(coeff(2))
-a=strtrim(a,1)
-b=string(error(2))
-b=strtrim(b,1)
-print,'Sigma from modelled noise:'+' '+a+' '+'+/-'+' '+b
+;a=string(coeff(2))
+;a=strtrim(a,1)
+;b=string(error(2))
+;b=strtrim(b,1)
+;print,'Sigma from modelled noise:'+' '+a+' '+'+/-'+' '+b
 a=string(coeff1(2))
 a=strtrim(a,1)
 b=string(error1(2))
@@ -248,27 +252,27 @@ print,'Sigma from filtered image:'+' '+a+' '+'+/-'+' '+b
 
 ;ATROUS METHOD
 
-print, 'ATROUS'
+;print, 'ATROUS'
 
-atrous, (1.*data(*,*,0)),decomposition=decomposition,/speed
+;atrous, (1.*data(*,*,0)),decomposition=decomposition,/speed
 
-decomp=decomposition(*,*,7)
+;decomp=decomposition(*,*,7)
 
-plothist, decomp,xhist, yhist, /AUTOBIN,/noplot,/fill,fcolor='blue',color='blue',axiscolor='black',xtitle=‘Atrous filtered intensity number’,ytitle=‘frequency’,
+;plothist, decomp,xhist, yhist, /AUTOBIN,/noplot,/fill,fcolor='blue',color='blue',axiscolor='black',xtitle=‘Atrous filtered intensity number’,ytitle=‘frequency’,
 
-est=[max(yhist),0,10]
+;est=[max(yhist),0,10]
 
-fit = gaussfit(xhist,yhist,coeff,estimates=est,sigma=er,nterms=3)
+;fit = gaussfit(xhist,yhist,coeff,estimates=est,sigma=er,nterms=3)
 
 ;loadct,2
 
 ;oplot, xhist,fit, color=‘100’,linestyle=1,thick=7
 
-a=string(coeff(2))
-a=strtrim(a,1)
-b=string(er(2))
-b=strtrim(b,1)
+;a=string(coeff(2))
+;a=strtrim(a,1)
+;b=string(er(2))
+;b=strtrim(b,1)
 
-print, 'Sigma from atrous'+' '+a+' '+'+/-'+' '+b
+;print, 'Sigma from atrous'+' '+a+' '+'+/-'+' '+b
 
 END
