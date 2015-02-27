@@ -49,23 +49,23 @@ xsz=float(sz(1))
 
 
 Mm=(0.725/16.981891892)
-;time=1.343 every 300s 30s holes
+time=1.343 ;every 300s 30s holes
 
-t1=670
-t2=893;(xsz-1)
+t1=0
+t2=(xsz-1)
 
 width = 9
-x11 = 130
-x22 = 280
-y11 = 390
-y22 = 500
+x11 = 600
+x22 = 800
+y11 = 700
+y22 = 960
 
-xcc1 = 23
-xcc2 = 41
-ycc1 = 51
-ycc2 = 34
+xcc1 = 55
+xcc2 = 88
+ycc1 = 105
+ycc2 = 122
 
-xrmax=300;(t2*1.343)
+xrmax=(t2*time)
 yrmax=Mm*(ysz-1.0)
 
 cut = -35
@@ -93,8 +93,7 @@ tsdop9=rotate(tsdop9,3)
 
 mask = tsint(t1:t2,*) lt cut
 set_plot,'ps'
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_13283950_2351/time_series_13283950_2351_4.eps'
-
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_60807096_55105/time_series_60807096_55105_com.eps'
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
 !P.Charsize=0.60
@@ -188,10 +187,10 @@ loadct,0
 
 set_plot, 'x'
 
-save,tsvel,description='Time series from Velocity core ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_13283950_2351/ts_vel_13283950_2351.idl'
-save,tsdop3,description='Time series from Doppler 362 ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_13283950_2351/ts_dop3_13283950_2351.idl'
-save,tsdop5,description='Time series from Doppler 504 ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_13283950_2351/ts_dop5_13283950_2351.idl'
-save,tsdop9,description='Time series from Doppler 906 ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_13283950_2351/ts_dop9_13283950_2351.idl'
+save,tsvel,description='Time series from Velocity core ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_60807096_55105/ts_vel_60807096_55105.idl'
+save,tsdop3,description='Time series from Doppler 362 ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_60807096_55105/ts_dop3_60807096_55105.idl'
+save,tsdop5,description='Time series from Doppler 504 ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_60807096_55105/ts_dop5_60807096_55105.idl'
+save,tsdop9,description='Time series from Doppler 906 ',filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/strong/time_series_60807096_55105/ts_dop9_60807096_55105.idl'
 
 return
 
