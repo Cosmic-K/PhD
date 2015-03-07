@@ -31,10 +31,10 @@
 
 ;time is presented in 5min intevals, chnage as desired
 ;pixels secs
-;223    300
-;446    600
-;670    900
-;893    1200
+;227    304
+;455    611
+;681    914
+;908    1219
 ;1116   1500
 
 pro multi_pl_2,tsint,vel=vel,dop362=dop362,dop504=dop504,dop906=dop906,tsvel,tsdop3,tsdop5,tsdop9
