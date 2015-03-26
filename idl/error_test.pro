@@ -1,4 +1,4 @@
-;Krishna Mooroogen.
+fsqrt;Krishna Mooroogen.
 ;Northumbria University, Solar group.
 ;02/12/14.
 ;Routine to perform sanity check on errors.
@@ -43,7 +43,7 @@ sz=size(data)
 
 ;FOR i=0,9 DO BEGIN
 
-;poisson_noise(*,*,i) = poidev(data(*,*,i))-data(*,*,i)
+;poisson_noise(*,*,i) = poidev(data(*,*,i))-data(*,*,(i+1))
 
 ;ENDFOR
 
