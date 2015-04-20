@@ -84,9 +84,9 @@ tot_noise = sqrt((pois_noise^2)+(sigma_dark^2)+(sqrt(abs(flats))^2))
 x=data_sum
 
 ;consts for later
-c=0.57
+c=1.112
 
-model_noise=(0.003*x)+c
+model_noise=(0.00013*x)+c
 cgscatter2d,model_noise,tot_noise,xtitle='modelled noise',ytitle='poisson + dark + flat'
 
 END
