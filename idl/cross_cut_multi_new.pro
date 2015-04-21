@@ -54,9 +54,9 @@ FOR i=0,4 DO BEGIN
 data_in = im_in
 
 IF i EQ 0 THEN BEGIN
-data_in=unsharp(data=data_in(*,*,time_stamps(i):time_stamps(i+1)),dx=9)
+data_in=data_in(*,*,time_stamps(i):time_stamps(i+1))
 ENDIF ELSE BEGIN
-data_in=unsharp(data=data_in(*,*,(time_stamps(i)+1):time_stamps(i+1)),dx=9)
+data_in=data_in(*,*,(time_stamps(i)+1):time_stamps(i+1))
 ENDELSE
 
 sum_im = sum(data_in,2)
@@ -67,9 +67,9 @@ sum_im = sum(data_in,2)
 IF n_elements(im_vel) NE 0. THEN BEGIN
 data_vel = im_vel
 IF i EQ 0 THEN BEGIN
-data_vel=unsharp(data=data_vel(*,*,time_stamps(i):time_stamps(i+1)),dx=9)
+data_vel=data_vel(*,*,time_stamps(i):time_stamps(i+1))
 ENDIF ELSE BEGIN
-data_vel=unsharp(data=data_vel(*,*,(time_stamps(i)+1):time_stamps(i+1)),dx=9)
+data_vel=data_vel(*,*,(time_stamps(i)+1):time_stamps(i+1))
 ENDELSE
 sum_im1 = sum(data_vel,2)
 ENDIF
@@ -167,11 +167,12 @@ len1=len
 wave_track2,sep,n_ts,len,data_in,out_ts,p_coord=pcoords,ts_coord=tcoords,x1=xx1, x2=xx2,y1=yy1,y2=yy2 ,/noopen
 
 tcoords=fix(tcoords)
-
+pcoords=pcoords1
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
 wave_track2,sep,n_ts,len1,data_vel,out_ts_vel,x1=pcoords(0), x2=pcoords(1),y1=pcoords(2),y2=pcoords(3),/noopen
+wave_track2,sep,n_ts,(len1+15),data_vel,out_ts_vel_con,x1=pcoords1(0), x2=pcoords1(1),y1=pcoords1(2),y2=pcoords1(3),/noopen
 
 ENDIF
 
@@ -326,6 +327,8 @@ save,out_ts,description='Time series from intensity core 60807096_'+strtrim(px1,
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
 save,out_ts_vel,description='Time series from velocity core 60807096_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(sep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_60807096_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_60807096_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+
+save,out_ts_vel_con,description='Time series from velocity core context 60807096_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(sep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_60807096_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_con_60807096_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 ENDIF
 
 ENDFOR
