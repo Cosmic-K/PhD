@@ -11,7 +11,7 @@
 
 ;INPUTS: data: 3D data cube of from x,y,t.
 
-pro error_4,dat
+pro error_4,dat,atr_points,a,b,c
 
 time_stamps=[0,227,455,681,908,1116]
 
@@ -121,7 +121,7 @@ use=where((mean_av lt 100) and (mean_av gt 0) )
 
 set_plot,'ps'
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density_pl_atun_bin.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density_pl_atun.eps'
 
 tvim,hd2^0.3,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intenstiy',ytitle='log(RMS) atrous/unsharp',/rct
 loadct,2,/silent
@@ -130,34 +130,44 @@ loadct,0,/silent
 
 device,/close
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/lin_pl_atun_bin.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/lin_pl_atun.eps'
 
 plot,xb(use),mean_av(use),psym=1,xtitle='Averaged intenstiy',ytitle='Mean log(RMS) atrous/unsharp';,/ylog
 
-res=linfit(xb(use),mean_av(use),chisqr=chi,covar=cov,sigma=sig,measure_errors=av_er(use))
-;res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use))
+;res=linfit(xb(use),mean_av(use),chisqr=chi,covar=cov,sigma=sig,measure_errors=av_er(use))
+res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use),yfit=fit,chisq=chi)
 ;start=[0.1,1]
 ;res=mpfitfun('func',xb(use),mean_av(use),av_er(use),start)
 
-m=res(1)
+atr_x=xb(use)
+atr_y=mean_av(use)
+atr_er=av_er(use)
+
+atr_points=[[atr_x],[atr_y],[atr_er]]
+
 c=res(0)
-;c=res(2)
+b=res(1)
+a=res(2)
+
 
 
 loadct,2,/silent
-oplot,xb(use),(m*xb(use)+c),color=100
-;errplot,xb(use),(mean_av(use)-av_er(use)),(mean_av(use)+av_er(use))
+oplot,xb(use),fit,color=100
+;plot,xb(use),res(2)*(xb(use)^2)+(res(1)*xb(use))+res(0),color=100 ; why is this wrong?!
+errplot,xb(use),(mean_av(use)-av_er(use)),(mean_av(use)+av_er(use))
 loadct,0,/silent
 
-print,res
+;print,res
+;print,float(chi)/(n_elements(xb(use))-3-1)
 
-m=string(m,Format='(D0.5)')
-;b=string(b,Format='(D0.3)')
-c=string(c,Format='(D0.5)')
+m=string(a,Format='(D0.3)')
+b=string(b,Format='(D0.3)')
+c=string(c,Format='(D0.3)')
 
-cgtext,3000,0.6,'y='+strtrim(m,1)+'x + '+strtrim(c,1),/data
+cgtext,3000,0.6,'y='+strtrim(a,1)+'x^2'+strtrim(b,a)+'x+'+strtrim(c,1),/data
 device,/close
 set_plot,'x'
 
+return
 
 END
