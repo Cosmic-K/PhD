@@ -58,7 +58,8 @@ READ,en,PROMPT='End point? '
 tube=[temporary(tube),pos(st:en,j)]
 ENDFOR
 
-tube=tube[1:(n_elements(tube)-2)]
+tube=tube[1:*]
+
 
 index1=where(tube eq -1)
 index0=where(tube eq 0)
@@ -69,8 +70,7 @@ tube(index)=0.7*max(tube)
 index=index[sort(index)]
 
 IF index(0) EQ 0 THEN index=index[1:*]
-IF index(n_elements(index)-1) EQ n_elements(tube) THEN index=index[0:(n_elements(index)-1)]
-print, index(n_elements(index)-1)
+
 
 use_pairs=0
 use_singles=0
@@ -115,27 +115,24 @@ singles[1:*:2]=use_singles+1
 
 num=findgen(float(n_elements(pairs))/2.0)*2
 
-;print,'index',index
-;print,'use_pairs',use_pairs
-;print,'use_singles',use_singles
-;print,'paris',pairs
-;print,'singles',singles
-print,'num',num
+IF pairs(n_elements(pairs)-1) EQ 229 THEN pairs(n_elements(pairs)-1)=228
 
 FOR j=0,n_elements(num)-1 DO BEGIN
-print,'j',j
 spline_p,[pairs(num(j)),pairs(num(j)+1)],[tube(pairs(num(j))),tube(pairs(num(j)+1))],xpos,ypos,interval=1.3
-print,xpos,ypos
 tube(xpos[1:(n_elements(xpos)-2)])=ypos[1:(n_elements(xpos)-2)]
 ENDFOR
 
-FOR j=0,(n_elements(singles)-2) DO BEGIN
-spline_p,[singles(j),singles(j+1)],[tube(singles(j)),tube(singles(j+1))],xpos,ypos,interval=sqrt(2)
+
+num=findgen(float(n_elements(singles))/2.0)*2
+
+FOR j=0,(n_elements(num)-1) DO BEGIN
+spline_p,[singles(num(j)),singles(num(j)+1)],[tube(singles(num(j))),tube(singles(num(j)+1))],xpos,ypos,interval=sqrt(2.5)
 tube(xpos[1:(n_elements(xpos)-2)])=ypos[1:(n_elements(xpos)-2)]
 ENDFOR
 
+tube=tube[0:(n_elements(tube)-2)]
 plot,tube
-help,tube
+
 
 ;ENDFOR
 END
