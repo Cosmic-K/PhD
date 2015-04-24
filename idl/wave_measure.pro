@@ -34,6 +34,10 @@ track_saus_test,data=(-1.*ts_in),errors=ts_er,fit,threads
 ;get start and end points of threads during this part
 ;dont forget the period and amplitude
 
+print,'#####################################'
+print,'END OF FITTING BEGINING TUBE MASKING'
+
+
 pos=threads.pos
 pos=pos[*,1:*]
 pos_size=size(pos)
@@ -42,37 +46,65 @@ tube=0
 st=0
 en=0
 
+;DONT exceed bounds
 FOR j=0,(pos_size(2)-1) DO BEGIN
 
+;WHILE (st lt 0) OR (en ge n_elements(pos_size(1))) DO BEGIN
 READ,st,PROMPT='Start point? '
-READ,en,PROMT='End point? '
+READ,en,PROMPT='End point? '
+;IF (st lt 0) OR (en ge n_elements(pos_size(1))) THEN print, 'Do not exceed bounds, re-enter'
+;ENDWHILE
+
 tube=[temporary(tube),pos(st:en,j)]
 ENDFOR
 
 tube=tube[1:(n_elements(tube)-2)]
 
-index=where((tube eq -1) AND (tube eq 0))
+index1=where(tube eq -1)
+index0=where(tube eq 0)
+index=[index1,index0]
 
 tube(index)=0.7*max(tube)
 
-IF index(0) EQ 0 THEN index=index[1:*]
+index=index[sort(index)]
 
+IF index(0) EQ 0 THEN index=index[1:*]
+IF index(n_elements(index)-1) EQ n_elements(tube) THEN index=index[0:(n_elements(index)-1)]
+print, index(n_elements(index)-1)
 
 use_pairs=0
 use_singles=0
 
-FOR j=0, (n_elements(index)-1) DO BEGIN
-IF (j EQ (n_elements(index)-1)) AND (index(j) NE index(j-1)+1) THEN use_singles=[tempoary(use_singles),index(j)]
-IF (j EQ (n_elements(index)-1)) AND (index(j) EQ index(j-1)+1) THEN use_pairs=[tempoary(use_pairs),index(j)]
-IF (j EQ 0) AND (index(j) EQ index(j+1)-1) THEN use_pairs=[tempoary(use_pairs),index(j)]
-IF (j EQ 0) AND (index(j) NE index(j+1)-1) THEN use_singles=[tempoary(use_singles),index(j)]
-IF (index(j) EQ index(j+1)-1) AND (index(j) NE index(j-1)+1) THEN use_pairs=[tempoary(use_pairs),index(j)]
-IF (index(j) EQ index(j-1)+1) AND (index(j) NE index(j+1)-1) THEN use_pairs=[tempoary(use_pairs),index(j)]
-IF (index(j) NE index(j-1)+1) AND (index(j) NE index(j+1)-1) THEN use_singles=[tempoary(use_singles),index(j)]
+last=(n_elements(index)-1)
+
+FOR j=0, last DO BEGIN
+
+
+IF j EQ 0 THEN BEGIN
+IF (index(j) EQ index(j+1)-1) THEN use_pairs=[temporary(use_pairs),index(j)] ELSE BEGIN
+IF (index(j) NE index(j+1)-1) THEN use_singles=[temporary(use_singles),index(j)]
+ENDELSE
+ENDIF
+
+IF (j NE 0) AND (j NE last) THEN BEGIN
+IF (index(j) EQ index(j+1)-1) AND (index(j) NE index(j-1)+1) THEN use_pairs=[temporary(use_pairs),index(j)]
+IF (index(j) EQ index(j-1)+1) AND (index(j) NE index(j+1)-1) THEN use_pairs=[temporary(use_pairs),index(j)]
+IF (index(j) NE index(j-1)+1) AND (index(j) NE index(j+1)-1) THEN use_singles=[temporary(use_singles),index(j)]
+ENDIF
+
+IF j EQ last THEN BEGIN
+IF (index(j) NE index(j-1)+1) THEN use_singles=[temporary(use_singles),index(j)] ELSE BEGIN
+IF (index(j) EQ index(j-1)+1) THEN use_pairs=[temporary(use_pairs),index(j)]
+ENDELSE
+ENDIF
+
 ENDFOR
 
+use_pairs=use_pairs[1:*]
+use_singles=use_singles[1:*]
+
 pairs=intarr(n_elements(use_pairs))
-singles=intarr(2*n_elements(singles))
+singles=intarr(2*n_elements(use_singles))
 
 pairs[0:*:2]=use_pairs[0:*:2]-1
 pairs[1:*:2]=use_pairs[1:*:2]+1
@@ -83,14 +115,23 @@ singles[1:*:2]=use_singles+1
 
 num=findgen(float(n_elements(pairs))/2.0)*2
 
-FOR j=0,n_elements(num) DO BEGIN
-spline_p,pairs[num(j):(num(j)+1)],tube(pairs[num(j):(num(j)+1)]),xpos,ypos,interval=1.3
-tube(xpos[1:(n_elements(xpos)-2)])=ypos[1:(n_elements(xpos)-1)]
+;print,'index',index
+;print,'use_pairs',use_pairs
+;print,'use_singles',use_singles
+;print,'paris',pairs
+;print,'singles',singles
+print,'num',num
+
+FOR j=0,n_elements(num)-1 DO BEGIN
+print,'j',j
+spline_p,[pairs(num(j)),pairs(num(j)+1)],[tube(pairs(num(j))),tube(pairs(num(j)+1))],xpos,ypos,interval=1.3
+print,xpos,ypos
+tube(xpos[1:(n_elements(xpos)-2)])=ypos[1:(n_elements(xpos)-2)]
 ENDFOR
 
 FOR j=0,(n_elements(singles)-2) DO BEGIN
-spline_p,singles[j:(j+1)],tube(singles[j:(j+1)]),xpos,ypos,interval=sqrt(2)
-tube(xpos[1:(n_elements(xpos)-2)])=ypos[1:(n_elements(xpos)-1)]
+spline_p,[singles(j),singles(j+1)],[tube(singles(j)),tube(singles(j+1))],xpos,ypos,interval=sqrt(2)
+tube(xpos[1:(n_elements(xpos)-2)])=ypos[1:(n_elements(xpos)-2)]
 ENDFOR
 
 plot,tube
