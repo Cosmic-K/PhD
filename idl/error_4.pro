@@ -11,32 +11,33 @@
 
 ;INPUTS: data: 3D data cube of from x,y,t.
 
-pro error_4,dat,atr_points,a,b,c
+pro error_4,dat
 
-time_stamps=[0,227,455,681,908,1116]
+time_stamps=[0,229,460,689,920,1149]
 
 
 ;maybe unsharp it so its equivilant to cross cut data,cut off edges
 ;change time stamp
 
-dat_im=dat(5:950,15:950,time_stamps(0):time_stamps(1))
+;dat_im=dat(0:969,10:990,time_stamps(0):time_stamps(1))
+dat_im=dat(5:954,15:950,time_stamps(0):time_stamps(1))
 
-
-;sum data over time, 20 frames omitting first frame to avoid time boundries
-sum_dat_im=float(sum(dat_im(*,*,1:21),2))/20.0
+;sum data over time, 40 frames omitting first frame to avoid time boundries
+sum_dat_im=float(sum(dat_im(*,*,1:40),2))/41.0
 
 sz=size(dat_im)
 
-;FRAME BY FRAME pixel variance
+;atrous/unsharp pixel variance
 ;calulating diference
 
 s=size(dat_im)
 
-decomp=fltarr(s(1),s(2),23)
+decomp=fltarr(s(1),s(2),41)
 
-FOR j=0,22 DO BEGIN
+FOR j=0,40 DO BEGIN
 atrous,1.*dat_im(*,*,j),decomposition=d,n_scales=1;,/speed
-decomp(*,*,j)=d(*,*,1)-unsharp(data=d(*,*,1))
+decomp(*,*,j)= smooth(d[*,*,1],[3,3],/edge_truncate)
+;-unsharp(data=d(*,*,1))
 ENDFOR
 
 
@@ -49,11 +50,11 @@ ENDFOR
 ENDFOR
 
 bsx=5
-
 bsy=0.01
 
+
 ln_rms=alog10(rms_noise>1)
-hd2 = hist_2d(sum_dat_im,ln_rms,bin1=fix(bsx),bin2=0.01)
+hd2 = hist_2d(sum_dat_im,ln_rms,bin1=bsx,bin2=bsy)
 
 sz=size(hd2)
 
@@ -62,11 +63,12 @@ x=0
 mean_av=0
 av_er=0
 
-FOR i=0, (sz(1)-1) DO BEGIN
+FOR i=long(0),(sz(1)-1) DO BEGIN
 
 ind=where(hd2[i,*] ne 0,count)
 
 IF count gt 100 THEN BEGIN
+;sprint,i
 
 x=[temporary(x),i]
 
@@ -81,19 +83,21 @@ y=b[where(b ne 0)]
 xx=x2[where(b ne 0)]
 xxb=xx*bsy
 
-;plot,xxb,y,psym=1,ytitle='No.events',xtitle='log(RMS)';,charsize=0.7
+plot,xxb,y,psym=1,ytitle='No.events',xtitle='log(RMS)';,charsize=0.7
 
 err=sqrt(abs(y))
 
-est=[max(y,o),1,1]
+est=[max(y),1,1]
 
 fit=gaussfit(xxb,y,coeff,sigma=error,estimates=est,nterms=3,measure_errors=err,chisq=chi)
 
-;loadct,2,/silent
-;oplot,xxb,fit,color=100
-;errplot,xxb,y-err,y+err
-;loadct,0,/silent
+loadct,2,/silent
+oplot,xxb,fit,color=100
+errplot,xxb,y-err,y+err
+loadct,0,/silent
 ;cgtext,5,(max(y)/2),'red chi = '+strtrim(chi,1),CHARSIZE=0.9,/data
+
+;print, coeff(1)
 
 av_er=[temporary(av_er),error(1)]
 mean_av=[temporary(mean_av),coeff(1)]
@@ -113,7 +117,7 @@ xb=x[1:*]*bsx
 mean_av=mean_av[1:*]
 av_er=av_er[1:*]
 
-help,mean_av
+;help,mean_av
 
 ;use=where(mean_av lt 5*sqrt((moment(mean_av))[1]))
 use=where((mean_av lt 100) and (mean_av gt 0) )
@@ -136,19 +140,12 @@ plot,xb(use),mean_av(use),psym=1,xtitle='Averaged intenstiy',ytitle='Mean log(RM
 
 ;res=linfit(xb(use),mean_av(use),chisqr=chi,covar=cov,sigma=sig,measure_errors=av_er(use))
 res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use),yfit=fit,chisq=chi)
-;start=[0.1,1]
-;res=mpfitfun('func',xb(use),mean_av(use),av_er(use),start)
 
-atr_x=xb(use)
-atr_y=mean_av(use)
-atr_er=av_er(use)
 
-atr_points=[[atr_x],[atr_y],[atr_er]]
 
 c=res(0)
 b=res(1)
 a=res(2)
-
 
 
 loadct,2,/silent
@@ -164,10 +161,8 @@ m=string(a,Format='(D0.3)')
 b=string(b,Format='(D0.3)')
 c=string(c,Format='(D0.3)')
 
-cgtext,3000,0.6,'y='+strtrim(a,1)+'x^2'+strtrim(b,a)+'x+'+strtrim(c,1),/data
+cgtext,3000,0.4,'y='+strtrim(a,1)+'x^2+'+strtrim(b,a)+'x+'+strtrim(c,1),/data
 device,/close
 set_plot,'x'
-
-return
 
 END
