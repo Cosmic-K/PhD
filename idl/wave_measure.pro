@@ -8,14 +8,14 @@
 ;USING INTENSITY THREADS TO MAKE MASK FOR VELOCITY DATA
 ;TAKES VELOCITY PROJECTION AND FITS SINE TO IT
 ;CALCULATES PHASE VELOCITY,AMPLITUDE, PERIOD FROM FITS
-;DISPLAYS PLOTS
+;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
-pro wave_measure,int_ts,vel_ts
+pro wave_measure,int_ts,vel_ts,fit,int_info,vel_info
 
 sz=size(int_ts)
-a=1.38671e-7
+a=3.55463e-7
 b=-0.001
-c=1.565
+c=1.178
 
 Mm = (0.725/16.981891892)
 sz = size(im_in)
@@ -51,8 +51,16 @@ width=3
 int_tube_list=0
 vel_tube_list=0
 
+t_xer=0
+t_yer=0
 
-FOR i=0,0 DO BEGIN;(sz(3)-1) DO BEGIN
+vel_time_xer = 0
+vel_time_yer = 0
+
+
+
+
+FOR i=0,(sz(3)-1) DO BEGIN
 
 print, 'YOU ARE MEASURING TIME SERIES NUMBER: ',i
 
@@ -60,7 +68,7 @@ int_amp=0
 int_per=0
 
 ts_in = int_ts(*,*,i)
-ts_er = 10^((a*ts_in^2)+(b*ts_in)+c)
+ts_er = ((a*ts_in^2)+(b*ts_in)+c)
 
 track_saus_test,data=(-1.*ts_in),errors=ts_er,fit,threads
 
@@ -182,6 +190,7 @@ int_tube_list=[temporary(int_tube_list),tube]
 FOR j=0, loopend DO BEGIN
 int_amp = [temporary(int_amp),sin_pos(1,j)]
 int_per = [temporary(int_per),sin_pos(2,j)]
+print,sin_pos(*,j)
 ENDFOR
 
 int_amplitudes=[temporary(int_amplitudes),int_amp[1:*]]
@@ -204,17 +213,22 @@ WHILE check NE 'y' DO BEGIN
 print,'Where would you like to cut?'
 READ,cutst,PROMPT='Start of cut? '
 READ,cuten,PROMPT='End of cut? '
-;READ,thread_num,PROMPT='Which thread index is that? '
 
-;print,pos_er[(cutst-sin_pos(11,thread_num)):(cuten-sin_pos(11,thread_num)),thread_num]
-res=poly_fit(x[cutst:cuten],tube[cutst:cuten],2,chisq=chi,yfit=fit)
+res=poly_fit(x[cutst:cuten],tube[cutst:cuten],2,chisq=chi,yfit=fit,sigma=sigma)
 print, 'Fit results: ',res
+print,'Errors',sigma
 print,'ChiSq: ',chi
+
 
 loadct,2,/silent
 oplot,x[cutst:cuten],fit,linestyle=1,color=100
+
 x_cen=float(-1*res(1))/float(2*res(2))
+delx=x_cen*sqrt((float(sigma(1))/float(res(1)))^2+(float(sigma(2))/float(res(2)))^2)
+
 y_cen=res(2)*x_cen^2+res(1)*x_cen+res(0)
+dely=sqrt((((2*res(2)*x_cen)+res(1))^2)*delx^2)
+
 plots,x_cen,y_cen,psym=1,color=100
 loadct,0,/silent
 
@@ -228,6 +242,8 @@ int_time_max=[temporary(int_time_max),x_time]
 int_time_pos_max=[temporary(int_time_pos_max),m]
 int_time =[temporary(int_time),x_cen]
 int_time_pos = [temporary(int_time_pos),y_cen]
+t_xer=[temporary(t_xer),delx]
+t_yer=[temporary(t_yer),dely]
 
 READ,fit_check,PROMPT='Are you done fitting? '
 
@@ -294,12 +310,19 @@ READ,cuten,PROMPT='End of cut? '
 
 res=poly_fit(x[cutst:cuten],ts_vel_sum[cutst:cuten],2,measure_errors=(tsv_er[cutst:cuten]),chisq=chi,yfit=fit)
 print, 'Fit results: ',res
+print,'Errors',sigma
 print,'ChiSq: ',chi
 
 loadct,2,/silent
 oplot,x[cutst:cuten],fit,linestyle=1,color=100
+
 x_cen=float(-1*res(1))/float(2*res(2))
+vdelx=x_cen*sqrt((float(sigma(1))/float(res(1)))^2+(float(sigma(2))/float(res(2)))^2)
+
 y_cen=res(2)*x_cen^2+res(1)*x_cen+res(0)
+vdely=sqrt((((2*res(2)*x_cen)+res(1))^2)*vdelx^2)
+
+
 plots,x_cen,y_cen,psym=1,color=100
 loadct,0,/silent
 
@@ -313,6 +336,8 @@ vel_time_max=[temporary(vel_time_max),x_time]
 vel_time_pos_max=[temporary(vel_time_pos_max),m]
 vel_time =[temporary(vel_time),x_cen]
 vel_time_pos = [temporary(vel_time_pos),y_cen]
+vel_time_xer = [temporary(vel_time_xer),vdelx]
+vel_time_yer= [temporary(vel_time_yer),vdely]
 
 READ,fit_check,PROMPT='Are you done fitting? '
 
@@ -328,13 +353,15 @@ loadct,0,/silent
 READ,t,PROMPT='Where in time do you want to look?'
 window,1
 plot,ts_vel(t,*)
+dine=''
+READ,done,PROMPT='Are you done? y/n '
 ;Eventually add something here to do stuff to it
 ENDIF
 
 print,'################################'
 print,'Sine fititng to velocity profile'
 
-x2=fingen(228)*time
+x2=findgen(228)*time
 plot,x2,ts_vel_sum
 
 fitdn=''
@@ -358,7 +385,7 @@ ENDIF
 
 
 res=mpfitfun('mysin',x2,ts_vel_sum,tsv_er,param,perror=perror,bestnorm=bestnorm,/quiet)
-yy=mysim(x2,res)
+yy=mysin(x2,res)
 loadct,2,/silent
 oplot,x2,yy,linestyle=1,color=100
 loadct,0,/silent
@@ -374,8 +401,10 @@ READ,fitdn,PROMPT='Are you happy with the fit?'
 
 ENDWHILE
 
-vel_amp=[temporary(vel_amp),res(1)]
-vel_per=[temporary(vel_per),res(2)]
+print,res,perror
+vel_amp=[temporary(vel_amp),res(1),perror(1)]
+vel_per=[temporary(vel_per),res(2),perror(2)]
+
 
 
 ENDFOR
@@ -383,20 +412,19 @@ ENDFOR
 print, 'Intensity amplitudes by times series and by thread in Mm: ',int_amplitudes[1:*]*Mm
 print, 'Intesnsity periods by time series and by thread in seconds: ',int_periods[1:*]*time
 
-int_tube_list = int_tube_list[1:*]*Mm
-int_time_max = int_time_max[1:*]*time
-int_time_pos_max = int_time_pos[1:*]*Mm
-int_time = int_time[1:*]*time
-int_time_pos = int_time_pos[1:*]*Mm
+print, 'Velocity amplitudes by times series and by thread in km/s: ',vel_amp[1:*];km/s?
+print, 'Velocity periods by time series and by thread in seconds: ',vel_per[1:*]*time
 
-vel_tube_list=vel_tube_list[1:*]
-vel_time_max=vel_time_max[1:*]*time
-vel_time_pos_max=vel_time_pos_max[1:*]
-vel_time = vel_time[1:*]*time
-vel_time_pos = vel_time_pos[1:*]
 
-;print, 'Velocity amplitudes by times series and by thread in Mm: ',vel_amplitudes[1:*]
-;print, 'Velocity periods by time series and by thread in seconds: ',vel_periods[1:*]*time
+
+int_info={tube_list:(int_tube_list[1:*]*Mm), int_time_max:int_time_max[1:*]*time, int_time_pos_max:int_time_pos[1:*]*Mm, int_time:int_time[1:*]*time, $
+int_time_pos:int_time_pos[1:*]*Mm,time_xer:t_xer[1:*]*time,time_yer:t_yer[1:*]*Mm}
+
+vel_info={vel_tube_list:vel_tube_list[1:*], vel_time_max:vel_time_max[1:*]*time, vel_time_pos_max:vel_time_pos_max[1:*], vel_time:vel_time[1:*]*time, $
+vel_time_pos:vel_time_pos[1:*], amp:vel_amp[1:*], period:vel_per[1:*]*time,vel_time_xer:vel_time_xer[1:*]*time,vel_time_yer:vel_time_yer[1:*]*Mm}
+
+
+
 
 
 
