@@ -11,14 +11,14 @@
 ;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
 pro wave_measure,int_ts,vel_ts,fit,int_info,vel_info
-
 sz=size(int_ts)
+
+
 a=3.55463e-7
 b=-0.001
 c=1.178
 
 Mm = (0.725/16.981891892)
-sz = size(im_in)
 xsz = Mm*(float(sz(1))-1.0)
 ysz = Mm*(float(sz(2))-1.0)
 
@@ -58,9 +58,7 @@ vel_time_xer = 0
 vel_time_yer = 0
 
 
-
-
-FOR i=0,(sz(3)-1) DO BEGIN
+FOR i=0,0 do begin ;(sz(3)-1) DO BEGIN
 
 print, 'YOU ARE MEASURING TIME SERIES NUMBER: ',i
 
@@ -282,11 +280,14 @@ ts_vel_sum=float(sum(ts_vel,1))/float(av)
 
 vel_tube_list=[temporary(vel_tube_list),ts_vel_sum]
 
+tvim,ts_vel
 
 tsv_er=0
 
 FOR j=0,(szv(1)-1) DO BEGIN
 a = ts_vel(j,*)
+print,a
+print,where(a NE 0)
 sd=stdev(a[where(a NE 0)])
 tsv_er=[temporary(tsv_er),sd]
 ENDFOR
@@ -367,6 +368,13 @@ plot,x2,ts_vel_sum
 fitdn=''
 WHILE fitdn NE 'y' DO BEGIN
 
+c=''
+READ,c,PROMPT='Change start of thread? y/n '
+IF c EQ 'y' THEN BEGIN
+READ,cutst,PROMPT='Start of thread? '
+READ,cuten,PROMPT='End of thread? '
+ts_vel_sum=ts_vel_sum[cutst:cuten]
+ENDIF
 
 param=[min(ts_vel_sum),1.,20.,0.5,1.]
 print,'Initial variables:',' constant', param[0],' amplitude',param[1],$

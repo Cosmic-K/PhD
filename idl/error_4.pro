@@ -53,19 +53,18 @@ bsy=0.01
 
 
 ln_rms = rms_noise;alog10(rms_noise >1)
-hd2 = hist_2d(sum_dat_im,ln_rms,bin1=bsx,bin2=bsy,max2=10)
+hd2 = hist_2d(sum_dat_im,ln_rms,bin1=bsx,bin2=bsy,max2=6,min1=1000,max1=2500)
 
 sz=size(hd2)
 
-;print,sz
 x=0
 mean_av=0
 av_er=0
 
-;tvim,hd2^0.4,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intensity',ytitle='RMS atrous/unsharp',/rct
+;tvim,hd2^0.7,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intensity',ytitle='RMS atrous/unsharp',/rct
 
 
-FOR i=long(0),400 DO BEGIN;
+FOR i=long(70),170 DO BEGIN;
 
 ind=where(hd2[i,*] ne 0,count)
 
@@ -85,24 +84,27 @@ xx=x2[where(b ne 0)]
 xxb=xx*bsy
 
 err=sqrt(abs(y))
+plot,(xxb),y,ytitle='No.events',xtitle='RMS'
 
-;plot,(xxb+1),y,psym=1,ytitle='No.events',xtitle='log(RMS)'
-est=[max(y),1.8,1]
+est=[max(y,o),alog(xxb(o)),1]
 
 
-;fit=gaussfit(xxb,y,coeff,sigma=error,estimates=est,nterms=3,measure_errors=err,chisq=chi)
-res=mpfitfun('logno',(xxb+1),y,err,est,perror=error,yfit=fit,/quiet)
-;print,res(1)
+fit=gaussfit(alog(xxb[1:*]),y[1:*],coeff,sigma=error,estimates=est,nterms=3,measure_errors=err[1:*],chisq=chi)
+;res=mpfitfun('logno',(xxb+1),y,err,est,perror=error,yfit=fit,/quiet)
+;print,coeff(1)
 
-;loadct,2,/silent
-;oplot,(xxb+1),fit,color=100
-;errplot,(xxb+1),y-err,y+err
-;loadct,0,/silent
+loadct,2,/silent
+oplot,(xxb),fit,color=100
+errplot,xxb,y-err,y+err
+mu = exp(coeff(1)+(0.5*coeff(2)^2))
+sigma = (exp(coeff(2)^2)-1)*exp(2*coeff(1)+coeff(2)^2)
+vline,mu
+loadct,0,/silent
 
 ;cgtext,5,(max(y)/2),'red chi = '+strtrim(chi,1),CHARSIZE=0.9,/data
 
-av_er=[temporary(av_er),error(1)]
-mean_av=[temporary(mean_av),res(1)]
+av_er=[temporary(av_er),sigma]
+mean_av=[temporary(mean_av),mu]
 
 
 ENDIF ELSE BEGIN
@@ -118,16 +120,16 @@ xb=x[1:*]*bsx
 mean_av=mean_av[1:*]
 av_er=av_er[1:*]
 
-;use=where(mean_av lt 5*sqrt((moment(mean_av))[1]))
+use=where(mean_av lt 5*sqrt((moment(mean_av))[1]))
 use=where((mean_av lt 100) and (mean_av gt 0) )
 
 
 set_plot,'ps'
 device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density_pl_atun.eps'
 
-tvim,hd2^0.4,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intenstiy',ytitle='RMS atrous/unsharp',/rct,pcharsize=0.5
+tvim,hd2^0.7,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intenstiy',ytitle='RMS atrous/unsharp',/rct,pcharsize=0.5
 loadct,2,/silent
-oplot,xb(use),mean_av(use),psym=1,color=100
+oplot,xb(use),mean_av(use),linestyle=1,color=100
 loadct,0,/silent
 
 device,/close
@@ -155,7 +157,7 @@ m=string(a,Format='(D0.3)')
 b=string(b,Format='(D0.3)')
 c=string(c,Format='(D0.3)')
 
-cgtext,1200,0.4,'y='+strtrim(a,1)+'x^2+'+strtrim(b,a)+'x+'+strtrim(c,1),/data
+cgtext,400,0.5,'y='+strtrim(a,1)+'x^2+'+strtrim(b,a)+'x+'+strtrim(c,1),/data
 device,/close
 set_plot,'x'
 
