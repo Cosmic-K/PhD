@@ -14,9 +14,9 @@ pro wave_measure,int_ts,vel_ts,fit,int_info,vel_info
 sz=size(int_ts)
 
 
-a=3.55463e-7
-b=-0.001
-c=1.178
+a=8.54378e-7
+b=-0.00047
+c=1.075
 
 Mm = (0.725/16.981891892)
 xsz = Mm*(float(sz(1))-1.0)
@@ -68,7 +68,7 @@ int_per=0
 ts_in = int_ts(*,*,i)
 ts_er = ((a*ts_in^2)+(b*ts_in)+c)
 
-track_saus_test,data=(-1.*ts_in),errors=ts_er,fit,threads
+track_saus_test,data=(-1.*smooth(ts_in,3)),errors=ts_er,fit,threads
 
 
 print,'#####################################'
@@ -252,7 +252,9 @@ print,'#################################'
 print,'VELOCITY'
 
 ts_vel = rotate(vel_ts(*,*,i),4)
-
+print, ts_vel[0,*]
+tvim,ts_vel
+stop
 y1=tube+width
 y2=tube-width
 
@@ -270,6 +272,8 @@ IF l GT y1(k) THEN ts_vel(k,l)=0 ELSE IF ts_vel(k,l) EQ 0 THEN ts_vel(k,l)=ts_ve
 ENDFOR
 ENDFOR
 
+
+
 av=fltarr(szv(1))
 FOR j=0,(szv(1)-1) DO BEGIN
 in=where(ts_vel(j,*) NE 0,count)
@@ -284,12 +288,15 @@ tvim,ts_vel
 
 tsv_er=0
 
-FOR j=0,(szv(1)-1) DO BEGIN
+
+
+FOR j=1,(szv(1)-1) DO BEGIN
 a = ts_vel(j,*)
-print,a
-print,where(a NE 0)
+IF sum(a,1) EQ 0 THEN BEGIN
+ENDIF ELSE BEGIN
 sd=stdev(a[where(a NE 0)])
 tsv_er=[temporary(tsv_er),sd]
+ENDELSE
 ENDFOR
 
 tsv_er=tsv_er[1:*]

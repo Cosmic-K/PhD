@@ -154,7 +154,7 @@ loadct,0,/silent
 ;print,float(chi)/(n_elements(xb(use))-3-1)
 
 m=string(a,Format='(D0.3)')
-b=string(b,Format='(D0.3)')
+b=string(b,Format='(D0.5)')
 c=string(c,Format='(D0.3)')
 
 cgtext,400,0.5,'y='+strtrim(a,1)+'x^2+'+strtrim(b,a)+'x+'+strtrim(c,1),/data
