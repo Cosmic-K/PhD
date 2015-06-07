@@ -49,7 +49,7 @@ time = 1.343
 
 time_stamps=[0,227,455,681,908,1116]
 
-FOR i=0,4 DO BEGIN
+FOR i=0,0 DO BEGIN
 
 data_in = im_in
 
@@ -131,13 +131,13 @@ px2=xx2
 py2=yy2
 
 
-result=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
-result1=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
+result=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
+result1=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
 
-IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
+IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
 
 
-IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
+IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
 
 
 
@@ -161,15 +161,14 @@ IF length eq 0 THEN length = 10
 sep = fix(sep)
 sep2=sep
 sep3=sep
-sep4=sep
 n_ts = fix(n_ts)
 len = fix(length)
 len1=len
 
 
-wave_track2,sep,n_ts,len,data_in,out_ts,p_coord=pcoords,ts_coord=tcoords,x1=xx1, x2=xx2,y1=yy1,y2=yy2 ,/noopen
+wave_track,sep,n_ts,len,data_in,out_ts,p_coord=pcoords,arr=arr,x1=xx1,x2=xx2,y1=yy1,y2=yy2,actsep=actsep,/noopen
 
-tcoords=fix(tcoords)
+tcoords=arr
 ;pcoords1=pcoords
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
@@ -189,29 +188,31 @@ tsysz = Mm*(float(szts(1))-1.0)
 
 set_plot,'ps'
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
 !P.Charsize=0.60
 
-tvim,sum_im(*,*),title='Core intensity summed over time, 10224050_1_'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm'
+tvim,sum_im(*,*),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm'
 plots,[(Mm*px1),(Mm*px2)],[(Mm*py1),(Mm*py2)],color=450
 FOR j=0,(szts(3)-1) DO BEGIN
 plots,[(Mm*tcoords[0,j]),(Mm*tcoords[1,j])],[(Mm*tcoords[2,j]),(Mm*tcoords[3,j])],color=450
+cgtext,Mm*tcoords[0,j]+0.1,Mm*tcoords[2,j],strtrim((j+1),1),/data
 ENDFOR
 
 device,/close
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
 !P.Charsize=0.60
 
-tvim,data_in(*,*,0),title='Core intensity, 10224050_1_'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm'
+tvim,data_in(*,*,0),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm'
 plots,[(Mm*px1),(Mm*px2)],[(Mm*py1),(Mm*py2)],color=450
 FOR k=0,(szts(3)-1) DO BEGIN
 plots,[(Mm*tcoords[0,k]),(Mm*tcoords[1,k])],[(Mm*tcoords[2,k]),(Mm*tcoords[3,k])],color=450
+
 ENDFOR
 
 device,/close
@@ -220,7 +221,7 @@ device,/close
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_vel_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_vel_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
@@ -228,22 +229,23 @@ device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/
 
 mg_loadct,22
 
-tvim,sum_im1(*,*),title='Core velocity summed over time, 10224050_1_'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm',/rct
+tvim,sum_im1(*,*),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm',/rct
 plots,[(Mm*px1),(Mm*px2)],[(Mm*py1),(Mm*py2)]
 FOR h=0,(szts(3)-1) DO BEGIN
 plots,[(Mm*tcoords[0,h]),(Mm*tcoords[1,h])],[(Mm*tcoords[2,h]),(Mm*tcoords[3,h])];,color=450
+cgtext,Mm*tcoords[0,h]+0.1,Mm*tcoords[2,h],strtrim((h+1),1),/data
 ENDFOR
 
 device,/close
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_vel_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_vel_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
 !P.Charsize=0.60
 
-tvim,data_vel(*,*,0),title='Core velocity, 10224050_1_'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm',/rct
+tvim,data_vel(*,*,0),title='Core velocity, 10224050_oth'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm',/rct
 plots,[(Mm*px1),(Mm*px2)],[(Mm*py1),(Mm*py2)]
 FOR g=0,(szts(3)-1) DO BEGIN
 plots,[(Mm*tcoords[0,g]),(Mm*tcoords[1,g])],[(Mm*tcoords[2,g]),(Mm*tcoords[3,g])];,color=450
@@ -256,7 +258,7 @@ loadct,0
 
 ;plot timeeries
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 
 !Y.OMargin = [2, 8]
@@ -272,7 +274,7 @@ ENDIF ELSE BEGIN
 ENDELSE
 
 FOR f=0,(n_ts-1) DO BEGIN
-tvim,rotate(out_ts(*,*,f),3),aspect=15,title='Intensity 10224050_1_'+strtrim(tcoords(0,f),1)+strtrim(tcoords(2,f),1),xrange=[0,tsxsz],yrange=[0,tsysz],xtitle='Seconds',ytitle='Mm'
+tvim,rotate(out_ts(*,*,f),3),aspect=15,title='Intensity 10224050_oth'+strtrim(tcoords(0,f),1)+strtrim(tcoords(2,f),1),xrange=[0,tsxsz],yrange=[0,tsysz],xtitle='Seconds',ytitle='Mm'
 ENDFOR
 
 !P.Multi = 0
@@ -285,7 +287,7 @@ device,/close
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_vel_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_vel_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 
 !Y.OMargin = [2, 10]
@@ -326,13 +328,13 @@ loadct,0
 
 set_plot, 'x'
 
-save,out_ts,description='Time series from intensity core 10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(sep4,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_core_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+save,out_ts,description='Time series from intensity core 10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_core_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
-save,out_ts_vel,description='Time series from velocity core 10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(sep4,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+save,out_ts_vel,description='Time series from velocity core 10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 
-save,out_ts_vel_con,description='Time series from velocity core context 10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(sep4,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_con_10224050_1_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+save,out_ts_vel_con,description='Time series from velocity core context 10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_con_10224050_oth'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 ENDIF
 
 ENDFOR
