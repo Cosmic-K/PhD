@@ -10,7 +10,7 @@
 ;CALCULATES PHASE VELOCITY,AMPLITUDE, PERIOD FROM FITS
 ;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
-pro wave_measure,int_ts,vel_ts,int_info,vel_info
+pro wave_measure1,int_ts,vel_ts,int_info,vel_info
 sz=size(int_ts)
 
 
@@ -38,8 +38,10 @@ vel_periods=0
 
 width=3
 
-int_tube_list=fltarr(228)
-int_terror=fltarr(228)
+t=227
+
+int_tube_list=fltarr(t)
+int_terror=fltarr(t)
 vel_tube_list=fltarr(227)
 vel_terror=fltarr(227);chop using st en
 
@@ -50,7 +52,7 @@ vel_time_xer = 0
 vel_time_yer = 0
 
 
-FOR i=3,3 do begin;(sz(3)-1) DO BEGIN
+FOR i=3,(sz(3)-1) DO BEGIN
 
 print, 'YOU ARE MEASURING TIME SERIES NUMBER: ',i
 
@@ -64,12 +66,12 @@ c=0.087
 ts_in = int_ts(*,*,i)
 ts_er = exp((a*ts_in^2)+(b*ts_in)+c)
 
-track_saus,data=(-1.*smooth(ts_in,3)),errors=ts_er,threads_fit_fg,threads,/patch
+track_saus,data=(-1.*ts_in),threads_fit_fg,threads,errors=ts_er,/patch
 
 
 print,'#####################################'
 print,'END OF FITTING BEGINING TUBE MASKING'
-print,'Enter tube bounderies for each thread to complete the structure. Do not exceed boundary limit.'
+;print,'Enter tube bounderies for each thread to complete the structure. Do not exceed boundary limit.'
 
 sin_pos=threads_fit_fg.fit_result_pos
 sin_pos=sin_pos[*,1:*]
@@ -82,8 +84,8 @@ pos_size=size(pos)
 
 
 tube=0
-st=0
-en=0
+;st=0
+;en=0
 
 IF N_ELEMENTS(pos_size) EQ 4 THEN loopend = 0
 IF N_ELEMENTS(pos_size) EQ 5 THEN loopend = (pos_size(2)-1)
@@ -92,36 +94,52 @@ FOR j=0, loopend DO BEGIN
 print, 'Thread start: ',sin_pos(11,j),'  Thread end: ',sin_pos(12,j)
 ENDFOR
 
+IF loopend EQ 0 THEN BEGIN
+help,pos
+tube=[temporary(tube),pos]
+tube=tube[1:*]
+ENDIF ELSE BEGIN
+
+;FOR j=0,loopend DO BEGIN
+;READ,st,PROMPT='Start? '
+;READ,en,PROMPT='End? '
 
 FOR j=0,loopend DO BEGIN
-READ,st,PROMPT='Start? '
-READ,en,PROMPT='End? '
-tube=[temporary(tube),pos(st:en,j)]
-
+en=max(where(pos(*,j) NE -1))
+IF j EQ loopend THEN tube=[temporary(tube),pos(en1+1:t-1,j)]
+IF j EQ 0 THEN BEGIN
+tube=[temporary(tube),pos(0:en,j)]
+ENDIF ELSE BEGIN
+tube=[temporary(tube),pos(en1+1:en,j)]
+ENDELSE
+en1=en
 ENDFOR
 
 tube=tube[1:*]
 
-pos_er=pos_er[st:en]
-int_tube_list=int_tube_list[st:en]
-int_terror=int_terror[st:en]
-vel_tube_list=vel_tube_list[st:en]
-vel_terror=vel_terror[st:en]
+;pos_er=pos_er[st:en]
+;int_tube_list=int_tube_list[st:en]
+;int_terror=int_terror[st:en]
+;vel_tube_list=vel_tube_list[st:en]
+;vel_terror=vel_terror[st:en]
 
 int_terror=[[temporary(int_terror)],[pos_er]]
 
 
 index=where(tube eq -1,count)
+mxin=max(where(tube NE -1))
+mnin=min(where(tube NE -1))
 
 IF (count NE 0) THEN BEGIN
-
 
 tube(index)=0.7*max(tube)
 
 index=index[sort(index)]
 
-IF index(0) EQ 0 THEN index=index[1:*]
-IF (N_ELEMENTS(tube) EQ 228) AND (index(N_ELEMENTS(index)-1) EQ 227) THEN index(N_ELEMENTS(index)-1)=226
+index=index(where(index LT mxin AND index GT mnin))
+
+;IF index(0) EQ 0 THEN index=index[1:*]
+;IF (N_ELEMENTS(tube) EQ t+1) AND (index(N_ELEMENTS(index)-1) EQ t) THEN index(N_ELEMENTS(index)-1)=t-1
 
 use_pairs=0
 use_singles=0
@@ -166,7 +184,7 @@ singles[1:*:2]=use_singles+1
 
 num=findgen(float(N_ELEMENTS(pairs))/2.0)*2
 
-IF pairs(N_ELEMENTS(pairs)-1) EQ 229 THEN pairs(N_ELEMENTS(pairs)-1)=228
+IF pairs(N_ELEMENTS(pairs)-1) EQ t+1 THEN pairs(N_ELEMENTS(pairs)-1)=t
 
 FOR j=0,N_ELEMENTS(num)-1 DO BEGIN
 spline_p,[pairs(num(j)),pairs(num(j)+1)],[tube(pairs(num(j))),tube(pairs(num(j)+1))],xpos,ypos,interval=1.3
@@ -181,9 +199,12 @@ spline_p,[singles(num(j)),singles(num(j)+1)],[tube(singles(num(j))),tube(singles
 tube(xpos[1:(N_ELEMENTS(xpos)-2)])=ypos[1:(N_ELEMENTS(xpos)-2)]
 ENDFOR
 
-IF N_ELEMENTS(tube) GT 228 THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding check if this needs to be chnages when tube threads is more than 3
+IF N_ELEMENTS(tube) GT t THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding check if this needs to be chnages when tube threads is more than 3
 
 ENDIF
+
+ENDELSE
+help,tube
 
 int_tube_list=[[temporary(int_tube_list)],[tube]]
 
@@ -200,10 +221,14 @@ print,'#################################'
 print,'VELOCITY'
 
 ts_vel = rotate(vel_ts(*,*,i),4)
-IF  N_ELEMENTS(ts_vel(*,0,0)) EQ 228 THEN ts_vel=ts_vel[1:*,*]
+;need to add something here for different time sets prob just use some kind of indexing
+;IF  N_ELEMENTS(ts_vel(*,0,0)) EQ t THEN ts_vel=ts_vel[1:*,*]
 
-y1=tube[1:*]+width
-y2=tube[1:*]-width
+;y1=tube[1:*]+width
+;y2=tube[1:*]-width
+
+y1=tube+width
+y2=tube-width
 
 szv=size(ts_vel)
 
@@ -243,6 +268,11 @@ tsv_er=tsv_er[1:*]
 
 vel_terror=[[temporary(vel_terror)],[tsv_er]]
 
+look=''
+while look ne 'y' do begin
+plot,findgen(szv(1))*time,y1
+READ,look,PROMPT='Done looking?'
+endwhile
 
 print,'################################'
 print,'Sine fititng to velocity profile'
@@ -261,6 +291,8 @@ READ,cutst,PROMPT='Start of thread? '
 READ,cuten,PROMPT='End of thread? '
 ts_vel_sum=ts_vel_sum[cutst:cuten]
 tsv_er=tsv_er[cutst:cuten]
+x2=x2[1.*cutst/time:1.*cuten/time]
+plot,x2,ts_vel_sum,xstyle=1
 ENDIF
 
 param=[abs(min(ts_vel_sum)),1.,20.,0.5,1.]
@@ -310,7 +342,7 @@ loadct,0,/silent
 READ,t,PROMPT='Where in time do you want to look?'
 window,1
 plot,ts_vel(t,*)
-dine=''
+done=''
 READ,done,PROMPT='Are you done? y/n '
 ;Eventually add something here to do stuff to it
 ENDIF
@@ -326,6 +358,6 @@ print, 'Velocity periods by time series and by thread in seconds: ',vel_per[1:*]
 
 int_info={tube_list:(int_tube_list[*,1:*]*Mm),int_tube_error: int_terror[*,1:*]*Mm}
 
-vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*] amp:vel_amp[1:*], period:vel_per[1:*]}
+vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*], amp:vel_amp[1:*], period:vel_per[1:*]}
 
 END
