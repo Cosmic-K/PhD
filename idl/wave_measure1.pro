@@ -24,8 +24,8 @@ int_time_pos=0
 int_amplitudes=0
 int_periods=0
 
-vel_amp=0
-vel_per=0
+vel_fit_res=fltarr(5)
+vel_fit_er=fltarr(5)
 
 vel_time_max=0
 vel_time_pos_max=0
@@ -82,51 +82,43 @@ pos=pos[*,1:*]
 pos_er=pos_er[*,1:*]
 pos_size=size(pos)
 
-
 tube=0
-;st=0
-;en=0
+tube_er=0
 
 IF N_ELEMENTS(pos_size) EQ 4 THEN loopend = 0
 IF N_ELEMENTS(pos_size) EQ 5 THEN loopend = (pos_size(2)-1)
 
 FOR j=0, loopend DO BEGIN
-print, 'Thread start: ',sin_pos(11,j),'  Thread end: ',sin_pos(12,j)
+print, 'Thread start: ',sin_pos(11,j)*time,'  Thread end: ',sin_pos(12,j)*time
 ENDFOR
 
 IF loopend EQ 0 THEN BEGIN
-help,pos
 tube=[temporary(tube),pos]
+tube_er=[temporary(tube_er),pos_er]
 tube=tube[1:*]
+tube_er=tube_er[1:*]
 ENDIF ELSE BEGIN
-
-;FOR j=0,loopend DO BEGIN
-;READ,st,PROMPT='Start? '
-;READ,en,PROMPT='End? '
 
 FOR j=0,loopend DO BEGIN
 en=max(where(pos(*,j) NE -1))
-IF j EQ loopend THEN tube=[temporary(tube),pos(en1+1:t-1,j)]
+IF j EQ loopend THEN BEGIN
+tube=[temporary(tube),pos(en1+1:t-1,j)]
+tube_er=[temporary(tube_er),pos_er(en1+1:t-1,j)]
+ENDIF
 IF j EQ 0 THEN BEGIN
 tube=[temporary(tube),pos(0:en,j)]
+tube_er=[temporary(tube_er),pos_er(0:en,j)]
 ENDIF ELSE BEGIN
 tube=[temporary(tube),pos(en1+1:en,j)]
+tube_er=[temporary(tube_er),pos_er(0:en,j)]
 ENDELSE
 en1=en
 ENDFOR
 
 tube=tube[1:*]
-
-;pos_er=pos_er[st:en]
-;int_tube_list=int_tube_list[st:en]
-;int_terror=int_terror[st:en]
-;vel_tube_list=vel_tube_list[st:en]
-;vel_terror=vel_terror[st:en]
-
-int_terror=[[temporary(int_terror)],[pos_er]]
-
-
+tube_er=tube_er[1:*]
 index=where(tube eq -1,count)
+
 mxin=max(where(tube NE -1))
 mnin=min(where(tube NE -1))
 
@@ -189,6 +181,7 @@ IF pairs(N_ELEMENTS(pairs)-1) EQ t+1 THEN pairs(N_ELEMENTS(pairs)-1)=t
 FOR j=0,N_ELEMENTS(num)-1 DO BEGIN
 spline_p,[pairs(num(j)),pairs(num(j)+1)],[tube(pairs(num(j))),tube(pairs(num(j)+1))],xpos,ypos,interval=1.3
 tube(xpos[1:(N_ELEMENTS(xpos)-2)])=ypos[1:(N_ELEMENTS(xpos)-2)]
+tube_er(xpos[1:(N_ELEMENTS(xpos)-2)])=ypos[1:(N_ELEMENTS(xpos)-2)]
 ENDFOR
 
 
@@ -197,6 +190,7 @@ num=findgen(float(N_ELEMENTS(singles))/2.0)*2
 FOR j=0,(N_ELEMENTS(num)-1) DO BEGIN
 spline_p,[singles(num(j)),singles(num(j)+1)],[tube(singles(num(j))),tube(singles(num(j)+1))],xpos,ypos,interval=sqrt(2.5)
 tube(xpos[1:(N_ELEMENTS(xpos)-2)])=ypos[1:(N_ELEMENTS(xpos)-2)]
+tube_er(xpos[1:(N_ELEMENTS(xpos)-2)])=ypos[1:(N_ELEMENTS(xpos)-2)]
 ENDFOR
 
 IF N_ELEMENTS(tube) GT t THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding check if this needs to be chnages when tube threads is more than 3
@@ -204,9 +198,11 @@ IF N_ELEMENTS(tube) GT t THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding c
 ENDIF
 
 ENDELSE
-help,tube
 
 int_tube_list=[[temporary(int_tube_list)],[tube]]
+int_terror=[[temporary(int_terror)],[tube_er]]
+
+
 
 FOR j=0, loopend DO BEGIN
 int_amp = [temporary(int_amp),sin_pos(1,j)]
@@ -282,20 +278,24 @@ x2=findgen(szv(1))*time
 fitdn=''
 WHILE fitdn NE 'y' DO BEGIN
 
-plot,x2,ts_vel_sum,xstyle=1
+plot,x2,ts_vel_sum,xstyle=1,xtitle='Time(s)',ytitle='LOS Velocoty(km/s)'
+velts=ts_vel_sum
+ver=tsv_er
+xx2=x2
+errplot,xx2,velts-ver,velts+ver
 
 c=''
 READ,c,PROMPT='Change start of thread? y/n '
 IF c EQ 'y' THEN BEGIN
 READ,cutst,PROMPT='Start of thread? '
 READ,cuten,PROMPT='End of thread? '
-ts_vel_sum=ts_vel_sum[cutst:cuten]
-tsv_er=tsv_er[cutst:cuten]
-x2=x2[1.*cutst/time:1.*cuten/time]
-plot,x2,ts_vel_sum,xstyle=1
+velts=ts_vel_sum[1.*cutst/time:1.*cuten/time]
+ver=tsv_er[1.*cutst/time:1.*cuten/time]
+xx2=x2[1.*cutst/time:1.*cuten/time]
+plot,xx2,velts,xstyle=1
 ENDIF
 
-param=[abs(min(ts_vel_sum)),1.,20.,0.5,1.]
+param=[velts[xx2(0)],1.,20.,0.5,1.]
 print,'Initial variables:',' constant', param[0],' amplitude',param[1],$
 'period',param[2],' phase',param[3],' linear',param[4]
 
@@ -306,15 +306,16 @@ IF st EQ 'y' THEN BEGIN
 
 READ,new2,PROMPT='Enter amplitude: '
 READ,new3,PROMPT='Enter period: '
-param=[param[0],new2,new3,param[3],param[4]]
+READ,new4,PROMPT='Enter phase: '
+param=[param[0],new2,new3,new4,param[4]]
 
 ENDIF
 
-res=mpfitfun('mysin',x2,ts_vel_sum,tsv_er,param,perror=perror,bestnorm=bestnorm,/quiet)
-yy=mysin(x2,res)
+res=mpfitfun('mysin',xx2,velts,ver,param,perror=perror,bestnorm=bestnorm,/quiet)
+yy=mysin(xx2,res)
 loadct,2,/silent
-oplot,x2,yy,linestyle=1,color=100
-errplot,x2,ts_vel_sum-tsv_er,ts_vel_sum+tsv_er
+oplot,xx2,yy,linestyle=1,color=100,thick=4
+errplot,xx2,velts-ver,velts+ver
 loadct,0,/silent
 
 print,'%'
@@ -329,8 +330,8 @@ READ,fitdn,PROMPT='Are you happy with the fit?'
 ENDWHILE
 
 print,res,perror
-vel_amp=[temporary(vel_amp),res(1),perror(1)]
-vel_per=[temporary(vel_per),res(2),perror(2)]
+vel_fit_res=[[temporary(vel_fit_res)],[res]]
+vel_fit_er=[[temporary(vel_fit_er)],[perror]]
 
 
 velcheck=''
@@ -350,14 +351,12 @@ ENDIF
 
 ENDFOR
 
-print, 'Intensity amplitudes by times series and by thread in Mm: ',int_amplitudes[1:*]*Mm
-print, 'Intesnsity periods by time series and by thread in seconds: ',int_periods[1:*]*time
-
-print, 'Velocity amplitudes by times series and by thread in m/s: ',vel_amp[1:*]
-print, 'Velocity periods by time series and by thread in seconds: ',vel_per[1:*]
-
 int_info={tube_list:(int_tube_list[*,1:*]*Mm),int_tube_error: int_terror[*,1:*]*Mm}
 
-vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*], amp:vel_amp[1:*], period:vel_per[1:*]}
+vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*],fit_param:vel_fit_res[*,1:*],fit_er:vel_fit_er[*,1:*]}
+
+save,int_info,filename='wm_int_0191030_659_3.idl'
+save,vel_info,filename='wm_vel_0191030_659_3.idl'
+
 
 END
