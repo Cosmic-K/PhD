@@ -1,4 +1,4 @@
- ;Krishna Mooroogen
+;Krishna Mooroogen
 ;Northumbria University Solar Physics
 ;krishna.mooroogen@northumbria.ac.uk
 ;Supervisor:Richard Morton
@@ -10,7 +10,7 @@
 ;CALCULATES PHASE VELOCITY,AMPLITUDE, PERIOD FROM FITS
 ;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
-pro wave_measure1,int_ts,vel_ts,int_info,vel_info
+pro wave_measure1,int_ts,vel_ts,int_info,vel_info,qlook=qlook
 sz=size(int_ts)
 
 
@@ -40,7 +40,7 @@ t=227
 int_tube_list=fltarr(t)
 int_terror=fltarr(t)
 vel_tube_list=fltarr(227)
-vel_terror=fltarr(227);chop using st en
+vel_terror=fltarr(227)
 
 t_xer=0
 t_yer=0
@@ -49,7 +49,7 @@ vel_time_xer = 0
 vel_time_yer = 0
 
 
-FOR i=32,(sz(3)-1) DO BEGIN
+FOR i=0,(sz(3)-1) DO BEGIN
 
 print, 'YOU ARE MEASURING TIME SERIES NUMBER: ',i,' of ',(sz(3)-1)
 
@@ -63,7 +63,7 @@ c=0.087
 ts_in = int_ts(*,*,i)
 ts_er = exp((a*ts_in^2)+(b*ts_in)+c)
 
-track_saus,data=(-1.*ts_in),threads_fit_fg,threads,errors=ts_er,/patch
+track_saus,data=smooth((-1.*ts_in),1),threads_fit_fg,threads,errors=ts_er,/patch
 
 
 print,'#####################################'
@@ -88,6 +88,8 @@ IF N_ELEMENTS(pos_size) EQ 5 THEN loopend = (pos_size(2)-1)
 FOR j=0, loopend DO BEGIN
 print, 'Thread start: ',sin_pos(11,j)*time,'  Thread end: ',sin_pos(12,j)*time
 ENDFOR
+
+
 
 IF loopend EQ 0 THEN BEGIN
 tube=[temporary(tube),pos]
@@ -125,6 +127,7 @@ index=where(tube eq -1,count)
 mxin=max(where(tube NE -1))
 mnin=min(where(tube NE -1))
 
+print,mxin,mnin
 IF (count NE 0) THEN BEGIN
 
 tube(index)=0.7*max(tube)
@@ -266,11 +269,13 @@ tsv_er=tsv_er[1:*]
 
 vel_terror=[[temporary(vel_terror)],[tsv_er]]
 
+IF keyword_set(qlook) THEN BEGIN
 look=''
 while look ne 'y' do begin
 plot,findgen(szv(1))*time,y1
 READ,look,PROMPT='Done looking?'
 endwhile
+ENDIF
 
 print,'################################'
 print,'Sine fititng to velocity profile'
@@ -280,21 +285,29 @@ x2=findgen(szv(1))*time
 fitdn=''
 WHILE fitdn NE 'y' DO BEGIN
 
-plot,x2,ts_vel_sum,xstyle=1,xtitle='Time(s)',ytitle='LOS Velocoty(km/s)'
-velts=ts_vel_sum
-ver=tsv_er
-xx2=x2
-errplot,xx2,velts-ver,velts+ver
+velts=ts_vel_sum[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
+ver=tsv_er[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
+xx2=x2[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
 
+plot,xx2,velts,xstyle=1,xtitle='Time(s)',ytitle='LOS Velocoty(km/s)'
+errplot,xx2,velts-ver,velts+ver
+ok=0
 c=''
 READ,c,PROMPT='Change start of thread? y/n '
 IF c EQ 'y' THEN BEGIN
+While ok eq 0 DO BEGIN
 READ,cutst,PROMPT='Start of thread? '
 READ,cuten,PROMPT='End of thread? '
+IF ((1.*cutst/time) lt 0) || ((1.*cutst/time) GT szv(1)-1) THEN BEGIN
+ok=0
+ENDIF ELSE BEGIN
 velts=ts_vel_sum[1.*cutst/time:1.*cuten/time]
 ver=tsv_er[1.*cutst/time:1.*cuten/time]
 xx2=x2[1.*cutst/time:1.*cuten/time]
 plot,xx2,velts,xstyle=1
+ok=1
+ENDELSE
+ENDWHILE
 ENDIF
 
 param=[velts[0],1.,20.,0.5,1.]
@@ -308,8 +321,7 @@ IF st EQ 'y' THEN BEGIN
 
 READ,new2,PROMPT='Enter amplitude: '
 READ,new3,PROMPT='Enter period: '
-READ,new4,PROMPT='Enter phase: '
-param=[param[0],new2,new3,new4,param[4]]
+param=[param[0],new2,new3,param[3],param[4]]
 
 ENDIF
 
@@ -361,8 +373,8 @@ int_info={tube_list:(int_tube_list[*,1:*]*Mm),int_tube_error: int_terror[*,1:*]*
 
 vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*],fit_param:vel_fit_res[*,1:*],fit_er:vel_fit_er[*,1:*]}
 
-save,int_info,filename='wm_int_0191030_758_3.idl'
-save,vel_info,filename='wm_vel_0191030_758_3.idl'
+save,int_info,filename='wm_int_0191030_114127_3.idl'
+save,vel_info,filename='wm_vel_0191030_114127_3.idl'
 
 
 END
