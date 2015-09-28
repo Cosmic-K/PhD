@@ -10,7 +10,7 @@
 ;CALCULATES PHASE VELOCITY,AMPLITUDE, PERIOD FROM FITS
 ;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
-pro wave_measure1,int_ts,vel_ts,int_info,vel_info,qlook=qlook
+pro wave_measure2,int_ts,vel_ts,int_info,vel_info,qlook=qlook
 sz=size(int_ts)
 
 
@@ -35,12 +35,12 @@ vel_periods=0
 
 width=3
 
-t=208
+t=226
 
 int_tube_list=fltarr(t)
 int_terror=fltarr(t)
-vel_tube_list=fltarr(208)
-vel_terror=fltarr(208)
+vel_tube_list=fltarr(226)
+vel_terror=fltarr(226)
 
 t_xer=0
 t_yer=0
@@ -207,6 +207,8 @@ ENDIF
 
 IF N_ELEMENTS(tube) GT t THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding check if this needs to be chnages when tube threads is more than 3
 ENDIF
+ENDELSE
+
 int_tube_list=[[temporary(int_tube_list)],[tube]]
 int_terror=[[temporary(int_terror)],[tube_er]]
 
@@ -227,6 +229,16 @@ y2=tube-width
 ENDELSE
 
 szv=size(ts_vel)
+print,szv
+print,size(y1)
+print,size(y2)
+
+mg_loadct,22,/silent
+cgimage,ts_vel,/axes,xrange=[0,225]*time,yrange=[0,szv(2)-1]*Mm,/window,/KEEP_ASPECT_RATIO,clip=15,xtitle='Tine (s)',ytitle='Displacement (Mm)',charsize=0.9
+cgplot,findgen(225)*time,y1*Mm,/window,/overplot;,color='black',xstyle=1,xrange=[0,225]*time
+cgplot,findgen(225)*time,y2*Mm,/window,/overplot;,color='black',xstyle=1,xrange=[0,225]*time
+loadct,0,/silent
+pause
 
 
 FOR k=0,(szv(1)-1) DO BEGIN
@@ -266,101 +278,28 @@ vel_terror=[[temporary(vel_terror)],[tsv_er]]
 
 IF keyword_set(qlook) THEN BEGIN
 look=''
-while look ne 'y' do begin
+WHILE look ne 'y' do begin
 plot,findgen(szv(1))*time,y1
 READ,look,PROMPT='Done looking?'
-endwhile
-ENDIF
-
-print,'################################'
-print,'Sine fititng to velocity profile'
-
-x2=findgen(szv(1))*time
-
-fitdn=''
-WHILE fitdn NE 'y' DO BEGIN
-
-velts=ts_vel_sum[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
-ver=tsv_er[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
-xx2=x2[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
-
-plot,xx2,velts,xstyle=1,xtitle='Time(s)',ytitle='LOS Velocoty(km/s)'
-errplot,xx2,velts-ver,velts+ver
-ok=0
-c=''
-READ,c,PROMPT='Change start of thread? y/n '
-IF c EQ 'y' THEN BEGIN
-While ok eq 0 DO BEGIN
-READ,cutst,PROMPT='Start of thread? '
-READ,cuten,PROMPT='End of thread? '
-IF ((1.*cutst/time) lt 0) || ((1.*cutst/time) GT szv(1)-1) THEN BEGIN
-ok=0
-ENDIF ELSE BEGIN
-velts=ts_vel_sum[1.*cutst/time:1.*cuten/time]
-ver=tsv_er[1.*cutst/time:1.*cuten/time]
-xx2=x2[1.*cutst/time:1.*cuten/time]
-plot,xx2,velts,xstyle=1
-ok=1
-ENDELSE
 ENDWHILE
 ENDIF
 
-param=[velts[0],1.,20.,0.5,1.]
-print,'Initial variables:',' constant', param[0],' amplitude',param[1],$
-'period',param[2],' phase',param[3],' linear',param[4]
 
-st=''
-READ,st,PROMPT='Change start variables? y/n '
-
-IF st EQ 'y' THEN BEGIN
-
-READ,new2,PROMPT='Enter amplitude: '
-READ,new3,PROMPT='Enter period: '
-param=[param[0],new2,new3,param[3],param[4]]
-
-ENDIF
-
-res=mpfitfun('mysin',xx2,velts,ver,param,perror=perror,bestnorm=bestnorm,/quiet)
-IF N_ELEMENTS(res) GT 4 THEN BEGIN
-yy=mysin(xx2,res)
-loadct,2,/silent
-oplot,xx2,yy,linestyle=1,color=100,thick=4
-errplot,xx2,velts-ver,velts+ver
+done=''
+WHILE DONE NE 'y' DO BEGIN
+mg_loadct,22,/silent
+cgimage,ts_vel,xtitle='Time (s)',ytitle='Displacment (Mm)',xrange=[0,225*time],yrange=[0,(szv(2)-1)*Mm],/window,/axis,/KEEP_ASPECT_RATIO,charsize=0.9
 loadct,0,/silent
+READ,t,PROMPT='Where in time do you want to look?'
+t=float(t)/time
+cgplot,ts_vel(t,*),/window,xstyle=4,ytitle='Velocity (km/s)'
+cgAxis,Xaxis=1,xrange=[0,25]*Mm,xstyle=1,/window,charsize=0.000000001
+cgAxis,Xaxis=0,title='Displacement (Mm)',xrange=[0,25]*Mm,xstyle=1,/window
 
-print,'%'
-print,'%'
-print,'Fitted variables',res
-print,'Error on fits',perror
-print,'Chi^2', bestnorm
-ENDIF
-READ,fitdn,PROMPT='Are you happy with the fit?'
- 
+
+done=''
+READ,done,PROMPT='Are you done? y/n '
 ENDWHILE
-
-IF N_ELEMENTS(res) GT 4 THEN BEGIN
-print,res,perror
-vel_fit_res=[[temporary(vel_fit_res)],[res]]
-vel_fit_er=[[temporary(vel_fit_er)],[perror]]
-ENDIF ELSE BEGIN
-vel_fit_res=[[temporary(vel_fit_res)],[0,0,0,0,0]]
-vel_fit_er=[[temporary(vel_fit_er)],[0,0,0,0,0]]
-ENDELSE
-
-;velcheck=''
-;READ,velcheck,PROMPT='Investigate velocity structure?'
-;IF velcheck EQ 'y' THEN BEGIN
-;mg_loadct,22,/silent
-;tvim,ts_vel,/rct,xtitle='Time(s)',ytitle='Displacment(Mm)',xrange=[0,226*time],yrange=[0,(szv(2)-1)*Mm]
-;loadct,0,/silent
-;READ,t,PROMPT='Where in time do you want to look?'
-;window,1
-;plot,ts_vel(t,*)
-;done=''
-;READ,done,PROMPT='Are you done? y/n '
-;Eventually add something here to do stuff to it
-;ENDIF
-
 
 ENDFOR
 

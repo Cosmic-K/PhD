@@ -41,13 +41,11 @@ ENDFOR
 ENDFOR
 
 
-bsx=50
-
-bsy=0.02
-
+bsx=100
+bsy=0.04
 ln_rms=alog10(rms_noise>1)
-hd2 = hist_2d(sum_dat_im,rms_noise,bin1=fix(bsx),bin2=0.01)
-
+hd2 = hist_2d(sum_dat_im,ln_rms,bin1=fix(bsx),bin2=bsy)
+help,hd2
 sz=size(hd2)
 
 x=0
@@ -58,7 +56,7 @@ FOR i=0, (sz(1)-1) DO BEGIN
 
 ind=where(hd2[i,*] ne 0,count)
 
-IF count gt 100 THEN BEGIN
+IF count gt 50 THEN BEGIN
 
 x=[temporary(x),i]
 
@@ -73,18 +71,18 @@ y=b[where(b ne 0)]
 xx=x2[where(b ne 0)]
 xxb=xx*bsy
 
-;plot,xxb,y,psym=1,ytitle='No.events',xtitle='log(RMS)';,charsize=0.7
+plot,xxb,y,psym=1,ytitle='No.events',xtitle='log(RMS)';,charsize=0.7
 
 err=sqrt(abs(y))
 
-est=[max(y,o),1.5,1]
+est=[max(y),2.7,0.7]
 
 fit=gaussfit(xxb,y,coeff,sigma=error,estimates=est,nterms=3,measure_errors=err,chisq=chi)
-
-;loadct,2,/silent
-;oplot,xxb,fit,color=100
+;print,chi
+loadct,2,/silent
+oplot,xxb,fit,color=100
 ;errplot,xxb,y-err,y+err
-;loadct,0,/silent
+loadct,0,/silent
 ;cgtext,5,(max(y)/2),'red chi = '+strtrim(chi,1),CHARSIZE=0.9,/data
 
 av_er=[temporary(av_er),error(1)]
@@ -101,28 +99,28 @@ ENDFOR
 
 help, mean_av
 
-xb=x[1:*]*bsx
-mean_av=mean_av[1:*]
-av_er=av_er[1:*]
+;xb=x[1:*]*bsx
+;mean_av=mean_av[1:*]
+;av_er=av_er[1:*]
 
 ;use=where(mean_av lt 5*sqrt((moment(mean_av))[1]))
-use=where((mean_av lt 1000) and (mean_av gt 0) )
+;use=where((mean_av lt 1000) and (mean_av gt 0) )
 
 
 set_plot,'ps'
 
-;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density_velpl_f2f.eps'
-
-tvim,hd2^0.3,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intenstiy',ytitle='log(RMS) frame to frame',/rct
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density_velpl_f2f.eps'
+tvim,hd2^0.1,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged velocity',ytitle='log(RMS) frame to frame',/rct
 ;loadct,2,/silent
 ;oplot,xb(use),mean_av(use),psym=1,color=80
 ;loadct,0,/silent
 
-;device,/close
+device,/close
+set_plot,'x'
 
 ;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/lin_velpl_f2f.eps'
 
-;plot,xb(use),mean_av(use),psym=1,xtitle='Averaged intenstiy',ytitle='Mean log(RMS) frame to frame';,/ylog
+;plot,xb(use),mean_av(use),psym=1,xtitle='Averaged velocity',ytitle='Mean log(RMS) frame to frame';,/ylog
 ;res=linfit(xb(use),mean_av(use),chisqr=chi,covar=cov,sigma=sig,measure_errors=av_er(use))
 ;c=res(0)
 ;m=res(1)
