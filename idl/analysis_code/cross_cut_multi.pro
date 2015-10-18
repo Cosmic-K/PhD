@@ -1,22 +1,28 @@
 ;Krishna Mooroogen.
 ;Northumbria University, Solar group.
-;25/02/15.
-;Routine to perform simulataneuous time series plots across single feature.
+;krishna.mooroogen@northumbria.ac.uk
+;PhD supervisor RIchard Morton
 
-;NOTEs
+
+;NOTES
+;--------------------------------------------------------------------------------
 ;Make cropped data before input. Crop in time as well before input if necessary.
 ;need to plot some kind of phase diagram with units
 
 
 ;CALL:
+;---------------------------------------------------------------------------------
 ;cross_cut_multi,data_in=data_in,data_vel=data_vel,xx1=xx1,xx2=xx2,yy1=yy1,yy2=yy2
 
 ;PURPOSE:
+;---------------------------------------------------------------------------------
+;Routine to perform simulataneuous time series plots across single feature.
 ;Make time series plots perpindicular across feature to create phase diagram
 ;Make time series of features in b intensity and velocity, or any er two input files
 ;plot and save datas
 
 ;INPUTS
+;----------------------------------------------------------------------------------
 ;input data must be cropped 3d data
 ;input velocity data
 ;z is a dummy, just so that the line define works as xx1 gets reasigned, when coords are put in manually set z to any integer.
@@ -25,13 +31,15 @@
 ;WATCH OUT FOR EDGE EFFECTS ON THE DATA IMAGE MAY NOT SHOW UP ON AVERAGE IMAGE
 
 ;OUTPUS
+;----------------------------------------------------------------------------------
 ;datas of FOV, time series and summed fov
 ;Time series data 0-9 across feature line
 
 
-pro cross_cut_multi_new,im_in=im_in,im_vel=im_vel,z=z,xx1=xx1,xx2=xx2,yy1=yy1,yy2=yy2
+pro cross_cut_multi,im_in=im_in,im_vel=im_vel,z=z,xx1=xx1,xx2=xx2,yy1=yy1,yy2=yy2
 
-
+;SETTING PLOTTING MARGINS
+;---------------------------------------------------------------------------------
 set_plot,'x'
 loadct,0
 !P.Multi = 0
@@ -39,19 +47,29 @@ loadct,0
 !Y.OMargin = [0, 0]
 !X.OMargin = [0, 0]
 
+;CONSTANTS
+;---------------------------------------------------------------------------------
+
 Mm = (0.725/16.981891892)
 sz = size(im_in)
 xsz = Mm*(float(sz(1))-1.0)
 ysz = Mm*(float(sz(2))-1.0)
-
-
 time = 1.343
-
 time_stamps=[0,227,455,681,908,1116]
 
-FOR i=0,0 DO BEGIN
 
+
+;BEGINING TO LOOP OVER TIME INTERVALS IN TIME STAMPS
+;----------------------------------------------------------------------------------
+
+FOR i=1,4 DO BEGIN
+
+;CHNAGE DATA NAME SO OUTPUT NOT CHNAGED
+;
 data_in = im_in
+
+;INITIAL PLOTTING SETUP AND TIME AVERAGING
+;---------------------------------------------------------------------------------
 
 IF i EQ 0 THEN BEGIN
 data_in=unsharp(data=data_in(*,*,time_stamps(i):time_stamps(i+1)),dx=14)
@@ -92,7 +110,8 @@ tvim,sum_im
 wset,window_var
 device,copy=[0,0,!d.x_size,!d.y_size,0,0,pixid]
 
-
+;SELECTING STRCUTURE GUIDLINE
+;------------------------------------------------------------------------------------------------
 PRINT,'Select point with cursor'
 CURSOR,xx1,yy1,/Data,/Down
 print,  'xx1='+strtrim(string(fix(xx1)),1), ' yy1='+strtrim(string(fix(yy1)),1)
@@ -130,17 +149,20 @@ py1=yy1
 px2=xx2
 py2=yy2
 
+;CHECKING SAVE FILE LOCATION
+;---------------------------------------------------------------------------------------------------------------
 
-result=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/9_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
-result1=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
+result=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
+result1=file_test('/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/ts_seis/time_series_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1),/directory)
 
-IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
-
-
-IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
-
+IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
 
 
+IF result EQ 0 THEN FILE_MKDIR,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/ts_seis/time_series_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)
+
+
+;MAKING TIME SERIES USING RICKS WAVE TRACKING
+;---------------------------------------------------------------------------------------------------------------
 ;time series will be output 3d x,t number of slits already rotated
 ;coords will be the coords of the line that follows the feature
 
@@ -185,10 +207,11 @@ szts = size(out_ts)
 tsxsz = time*(float(szts(2))-1.0)
 tsysz = Mm*(float(szts(1))-1.0)
 
-
+;PLOTTING FOV'S AND SAVING T/D PLOTS
+;--------------------------------------------------------------------------------------------------------------------------------------------------------'
 set_plot,'ps'
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
@@ -203,7 +226,7 @@ ENDFOR
 
 device,/close
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
 !P.Charsize=0.60
@@ -221,7 +244,7 @@ device,/close
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_vel_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_vel_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
@@ -238,14 +261,14 @@ ENDFOR
 
 device,/close
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_vel_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_vel_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 
 !Y.OMargin = [2, 8]
 !X.OMargin = [2, 6]
 !P.Charsize=0.60
 
-tvim,data_vel(*,*,0),title='Core velocity, 0191030_'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm',/rct
+tvim,data_vel(*,*,0),title='Core velocity, 80967689_'+strtrim(px1,1)+strtrim(py1,1),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm',/rct
 plots,[(Mm*px1),(Mm*px2)],[(Mm*py1),(Mm*py2)]
 FOR g=0,(szts(3)-1) DO BEGIN
 plots,[(Mm*tcoords[0,g]),(Mm*tcoords[1,g])],[(Mm*tcoords[2,g]),(Mm*tcoords[3,g])];,color=450
@@ -258,7 +281,7 @@ loadct,0
 
 ;plot timeeries
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 
 !Y.OMargin = [2, 8]
@@ -274,7 +297,7 @@ ENDIF ELSE BEGIN
 ENDELSE
 
 FOR f=0,(n_ts-1) DO BEGIN
-tvim,rotate(out_ts(*,*,f),3),aspect=15,title='Intensity 0191030_'+strtrim(tcoords(0,f),1)+strtrim(tcoords(2,f),1),xrange=[0,tsxsz],yrange=[0,tsysz],xtitle='Seconds',ytitle='Mm'
+tvim,rotate(out_ts(*,*,f),3),aspect=15,title='Intensity 80967689_'+strtrim(tcoords(0,f),1)+strtrim(tcoords(2,f),1),xrange=[0,tsxsz],yrange=[0,tsysz],xtitle='Seconds',ytitle='Mm'
 ENDFOR
 
 !P.Multi = 0
@@ -287,7 +310,7 @@ device,/close
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/wavetracking/0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_vel_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/time_series_vel_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
 
 !Y.OMargin = [2, 10]
@@ -328,13 +351,16 @@ loadct,0
 
 set_plot, 'x'
 
-save,out_ts,description='Time series from intensity core 0191030_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_core_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+;SAVING T/D DIAGARAMS IN ARRAY
+;--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+save,out_ts,description='Time series from intensity core 80967689_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/ts_seis/time_series_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_core_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 
 IF n_elements(im_vel) NE 0 THEN BEGIN
 
-save,out_ts_vel,description='Time series from velocity core 0191030_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+save,out_ts_vel,description='Time series from velocity core 80967689_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/ts_seis/time_series_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 
-save,out_ts_vel_con,description='Time series from velocity core context 0191030_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/timeseries/full_diag/time_series_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_con_0191030_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
+save,out_ts_vel_con,description='Time series from velocity core context 80967689_'+strtrim(px1,1)+strtrim(py1,1)+strtrim(px2,1)+strtrim(py2,1)+' number of slits '+strtrim(n_ts,1)+' steps '+strtrim(actsep,1),filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/ts_seis/time_series_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/ts_vel_con_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.idl'
 ENDIF
 
 ENDFOR

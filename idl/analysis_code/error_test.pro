@@ -1,32 +1,50 @@
 ;Krishna Mooroogen.
 ;Northumbria University, Solar group.
-;02/12/14.
-;Routine to perform sanity check on errors using model fitting
-;noise versus intesnity between time sections
+;krishna.mooroogen@northumbria.ac.uk
+;PhD supervisor Richard Morton
 
+
+;NOTES
+;-------------------------------------------------------------------------------------------------
 ;Assume data is a data cube for now add additional handling later.
 ;Might be worth adding peak det to estimate width and mean.
 
-;PURPOSE: Compare noise estimates in astronomical data with modelled noise to check for discprencies.
+;PURPOSE:
+;------------------------------------------------------------------------------------------------
+;Compare noise estimates in astronomical data with modelled noise to check for discprencies.
+;Routine to perform sanity check on errors using model fitting
+;noise versus intesnity between time sections
 
-;INPUTS: data: 3D data cube of from x,y,t.
+;INPUTS:
+;-----------------------------------------------------------------------------------------------
+;data: 3D data cube of from x,y,t.
 
-pro error_4,dat
+;OUTPUTS
+;-----------------------------------------------------------------------------------------------
+;Plots error coorelations and funciton of relationship
+
+pro error_test,dat
+
+
+;CONSTANTS
+;-----------------------------------------------------------------------------------------------
 
 time_stamps=[0,229,460,689,920,1149]
-
-
-;maybe unsharp it so its equivilant to cross cut data,cut off edges
 ;change time stamp
 
+;CROPPING
+;---------------------------------------------------------------------------
 dat_im=dat(0:969,10:990,time_stamps(0):time_stamps(1))
-;dat_im=dat(5:954,15:950,time_stamps(0):time_stamps(1))
 
+;AVERAGING
+;---------------------------------------------------------------------------
 ;sum data over time, 40 frames omitting first frame to avoid time boundries
 sum_dat_im=float(sum(dat_im(*,*,1:40),2))/41.0
 
 sz=size(dat_im)
 
+;ESTIMATING NOISE
+;-------------------------------------------------------------------------
 ;atrous/unsharp pixel variance
 ;calulating diference
 
@@ -51,6 +69,8 @@ ENDFOR
 bsx=5
 bsy=0.01
 
+;JOINT PROB DIST OF DATA AND NOISE
+;-----------------------------------------------------------------------------
 
 ln_rms = rms_noise;alog10(rms_noise >1)
 hd2 = hist_2d(sum_dat_im,ln_rms,bin1=bsx,bin2=bsy,max2=4,min1=1000,max1=2500)
@@ -63,6 +83,11 @@ av_er=0
 
 ;tvim,hd2^0.7,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],xtitle='Averaged intensity',ytitle='RMS atrous/unsharp',/rct
 
+
+;EXTARCTING DATA FROM 2D HISTOGRAM AND FITTING LOG NORMAL TO DISTRIBUTION BINS
+;--------------------------------------------------------------------------------
+;
+;
 
 FOR i=long(70),170 DO BEGIN;70, 170
 
@@ -123,10 +148,14 @@ xb=x[1:*]*bsx
 mean_av=mean_av[1:*]
 av_er=av_er[1:*]
 
-use=where(mean_av lt 5*sqrt((moment(mean_av))[1]))
+;FILTERING BAD FITS
+;------------------------------------------------------------------------------------------------------
+;use=where(mean_av lt 5*sqrt((moment(mean_av))[1]))
 use=where((mean_av lt 100) and (mean_av gt 0) )
 
 
+;PLOTTING MEANS OF DISTRIBUTION AND FITTING FUCNTION
+;------------------------------------------------------------------------------------------------------
 
 ;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/lin_pl_atun.eps'
 

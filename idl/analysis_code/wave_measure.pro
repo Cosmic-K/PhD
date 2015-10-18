@@ -10,7 +10,7 @@
 ;CALCULATES PHASE VELOCITY,AMPLITUDE, PERIOD FROM FITS
 ;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
-pro wave_measure2,int_ts,vel_ts,int_info,vel_info,qlook=qlook
+pro wave_measure,int_ts,vel_ts=vel_ts,int_info,vel_info=vel_info,qlook=qlook
 sz=size(int_ts)
 
 
@@ -212,6 +212,7 @@ ENDELSE
 int_tube_list=[[temporary(int_tube_list)],[tube]]
 int_terror=[[temporary(int_terror)],[tube_er]]
 
+IF N_ELEMENTS(vel_ts) NE 0 THEN BEGIN
 
 print,'#################################'
 print,'VELOCITY'
@@ -300,15 +301,17 @@ cgAxis,Xaxis=0,title='Displacement (Mm)',xrange=[0,25]*Mm,xstyle=1,/window
 done=''
 READ,done,PROMPT='Are you done? y/n '
 ENDWHILE
+ENDIF
+
 
 ENDFOR
 
 int_info={tube_list:(int_tube_list[*,1:*]*Mm),int_tube_error: int_terror[*,1:*]*Mm}
-
-vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*],fit_param:vel_fit_res[*,1:*],fit_er:vel_fit_er[*,1:*]}
-
 save,int_info,filename='wm_int_6258077915_24111_4.idl'
-save,vel_info,filename='wm_vel_6258077915_24111_4.idl'
 
+IF n_elements(vel_ts) NE 0 THEN BEGIN
+vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*],fit_param:vel_fit_res[*,1:*],fit_er:vel_fit_er[*,1:*]}
+save,vel_info,filename='wm_vel_6258077915_24111_4.idl'
+ENDIF
 
 END

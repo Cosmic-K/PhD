@@ -10,7 +10,7 @@
 ;CALCULATES PHASE VELOCITY,AMPLITUDE, PERIOD FROM FITS
 ;PEAK DETECTOR WILL SPEED UP PEAK FITTING
 
-pro wave_measure1,int_ts,vel_ts,int_info,vel_info,qlook=qlook
+pro wave_measure_int,int_ts,int_info,qlook=qlook
 sz=size(int_ts)
 
 
@@ -21,32 +21,15 @@ time = 1.343
 int_time=0
 int_time_pos=0
 
-vel_fit_res=fltarr(5)
-vel_fit_er=fltarr(5)
-
-vel_time_max=0
-vel_time_pos_max=0
-
-vel_time=0
-vel_time_pos=0
-
-vel_amplitudes=0
-vel_periods=0
-
 width=3
 
-t=208
+t=228
 
 int_tube_list=fltarr(t)
 int_terror=fltarr(t)
-vel_tube_list=fltarr(208)
-vel_terror=fltarr(208)
 
 t_xer=0
 t_yer=0
-
-vel_time_xer = 0
-vel_time_yer = 0
 
 
 FOR i=0,(sz(3)-1) DO BEGIN
@@ -85,7 +68,6 @@ IF N_ELEMENTS(pos_size) EQ 5 THEN loopend = (pos_size(2)-1)
 FOR j=0, loopend DO BEGIN
 print, 'Thread start: ',sin_pos(11,j)*time,'  Thread end: ',sin_pos(12,j)*time
 ENDFOR
-
 
 
 IF loopend EQ 0 THEN BEGIN
@@ -207,169 +189,18 @@ ENDIF
 
 IF N_ELEMENTS(tube) GT t THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding check if this needs to be chnages when tube threads is more than 3
 ENDIF
+ENDELSE
+
+help,tube
+help,int_tube_list
 int_tube_list=[[temporary(int_tube_list)],[tube]]
 int_terror=[[temporary(int_terror)],[tube_er]]
-
-
-print,'#################################'
-print,'VELOCITY'
-
-ts_vel = rotate(vel_ts(*,*,i),4)
-
-IF  N_ELEMENTS(ts_vel(*,0,0)) EQ 228 THEN BEGIN
-
-ts_vel=ts_vel[1:*,*]
-y1=tube[1:*]+width
-y2=tube[1:*]-width
-ENDIF ELSE BEGIN
-y1=tube+width
-y2=tube-width
-ENDELSE
-
-szv=size(ts_vel)
-
-
-FOR k=0,(szv(1)-1) DO BEGIN
-FOR l=0,(szv(2)-1) DO BEGIN
-IF l LT y2(k) THEN ts_vel(k,l)=0 ELSE ts_vel(k,l)=ts_vel(k,l)
-ENDFOR
-ENDFOR
-
-FOR k=0,(szv(1)-1) DO BEGIN
-FOR l=0,(szv(2)-1) DO BEGIN
-IF l GT y1(k) THEN ts_vel(k,l)=0 ELSE IF ts_vel(k,l) EQ 0 THEN ts_vel(k,l)=ts_vel(k,l)
-ENDFOR
-ENDFOR
-
-av=fltarr(szv(1))
-FOR j=0,(szv(1)-1) DO BEGIN
-in=where(ts_vel(j,*) NE 0,count)
-av(j)=count
-ENDFOR
-
-ts_vel_sum=float(sum(ts_vel,1))/float(av)
-
-vel_tube_list=[[temporary(vel_tube_list)],[ts_vel_sum]]
-
-tsv_er=0
-
-
-FOR j=0,(szv(1)-1) DO BEGIN
-a = ts_vel(j,*)
-sd=stdev(a[where(a NE 0)])
-if sd eq 0 then tsv_er=[temporary(tsv_er),0.001] else tsv_er=[temporary(tsv_er),sd]
-ENDFOR
-
-tsv_er=tsv_er[1:*]
-
-vel_terror=[[temporary(vel_terror)],[tsv_er]]
-
-IF keyword_set(qlook) THEN BEGIN
-look=''
-while look ne 'y' do begin
-plot,findgen(szv(1))*time,y1
-READ,look,PROMPT='Done looking?'
-endwhile
-ENDIF
-
-print,'################################'
-print,'Sine fititng to velocity profile'
-
-x2=findgen(szv(1))*time
-
-fitdn=''
-WHILE fitdn NE 'y' DO BEGIN
-
-velts=ts_vel_sum[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
-ver=tsv_er[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
-xx2=x2[sin_pos(11,0)+1:sin_pos(12,loopend)-1]
-
-plot,xx2,velts,xstyle=1,xtitle='Time(s)',ytitle='LOS Velocoty(km/s)'
-errplot,xx2,velts-ver,velts+ver
-ok=0
-c=''
-READ,c,PROMPT='Change start of thread? y/n '
-IF c EQ 'y' THEN BEGIN
-While ok eq 0 DO BEGIN
-READ,cutst,PROMPT='Start of thread? '
-READ,cuten,PROMPT='End of thread? '
-IF ((1.*cutst/time) lt 0) || ((1.*cutst/time) GT szv(1)-1) THEN BEGIN
-ok=0
-ENDIF ELSE BEGIN
-velts=ts_vel_sum[1.*cutst/time:1.*cuten/time]
-ver=tsv_er[1.*cutst/time:1.*cuten/time]
-xx2=x2[1.*cutst/time:1.*cuten/time]
-plot,xx2,velts,xstyle=1
-ok=1
-ENDELSE
-ENDWHILE
-ENDIF
-
-param=[velts[0],1.,20.,0.5,1.]
-print,'Initial variables:',' constant', param[0],' amplitude',param[1],$
-'period',param[2],' phase',param[3],' linear',param[4]
-
-st=''
-READ,st,PROMPT='Change start variables? y/n '
-
-IF st EQ 'y' THEN BEGIN
-
-READ,new2,PROMPT='Enter amplitude: '
-READ,new3,PROMPT='Enter period: '
-param=[param[0],new2,new3,param[3],param[4]]
-
-ENDIF
-
-res=mpfitfun('mysin',xx2,velts,ver,param,perror=perror,bestnorm=bestnorm,/quiet)
-IF N_ELEMENTS(res) GT 4 THEN BEGIN
-yy=mysin(xx2,res)
-loadct,2,/silent
-oplot,xx2,yy,linestyle=1,color=100,thick=4
-errplot,xx2,velts-ver,velts+ver
-loadct,0,/silent
-
-print,'%'
-print,'%'
-print,'Fitted variables',res
-print,'Error on fits',perror
-print,'Chi^2', bestnorm
-ENDIF
-READ,fitdn,PROMPT='Are you happy with the fit?'
- 
-ENDWHILE
-
-IF N_ELEMENTS(res) GT 4 THEN BEGIN
-print,res,perror
-vel_fit_res=[[temporary(vel_fit_res)],[res]]
-vel_fit_er=[[temporary(vel_fit_er)],[perror]]
-ENDIF ELSE BEGIN
-vel_fit_res=[[temporary(vel_fit_res)],[0,0,0,0,0]]
-vel_fit_er=[[temporary(vel_fit_er)],[0,0,0,0,0]]
-ENDELSE
-
-;velcheck=''
-;READ,velcheck,PROMPT='Investigate velocity structure?'
-;IF velcheck EQ 'y' THEN BEGIN
-;mg_loadct,22,/silent
-;tvim,ts_vel,/rct,xtitle='Time(s)',ytitle='Displacment(Mm)',xrange=[0,226*time],yrange=[0,(szv(2)-1)*Mm]
-;loadct,0,/silent
-;READ,t,PROMPT='Where in time do you want to look?'
-;window,1
-;plot,ts_vel(t,*)
-;done=''
-;READ,done,PROMPT='Are you done? y/n '
-;Eventually add something here to do stuff to it
-;ENDIF
 
 
 ENDFOR
 
 int_info={tube_list:(int_tube_list[*,1:*]*Mm),int_tube_error: int_terror[*,1:*]*Mm}
 
-vel_info={vel_tube_list:vel_tube_list[*,1:*],vel_tube_error:vel_terror[*,1:*],fit_param:vel_fit_res[*,1:*],fit_er:vel_fit_er[*,1:*]}
-
-save,int_info,filename='wm_int_6258077915_24111_4.idl'
-save,vel_info,filename='wm_vel_6258077915_24111_4.idl'
-
+save,int_info,filename='wm_int_22452940_4625.idl'
 
 END
