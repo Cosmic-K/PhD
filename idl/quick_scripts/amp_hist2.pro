@@ -1,4 +1,4 @@
-pro amp_hist,x
+pro amp_hist2,x
 openr,lun,'ap_list.txt',/get_lun
 array = ''
 line = ''
@@ -40,9 +40,9 @@ ad=ad[1:*]
 ade=ade[1:*]
 
 set_plot,'ps'
-device,/encapsul,/color,filename='h_vs_amp'+strtrim(i,1)+'.ps'
-h=findegen(n_elements(ad)*Mm
-plot,h,abs(ad)*km
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/amp_height/h_vs_amp'+strtrim(i,1)+'.ps'
+h=findgen(n_elements(ad))*Mm
+plot,h,abs(ad)*km,xtitle='Height along structure (Mm)',ytitle='Displacement amplitude (km)'
 errplot,h,abs(ad)*km-ade*km,abs(ad)*km+ade*km,thick=2
 
 ;!Y.OMargin = [2, 8]
@@ -51,8 +51,8 @@ errplot,h,abs(ad)*km-ade*km,abs(ad)*km+ade*km,thick=2
 
 device,/close
 
-openw,1,'amp'+strtrim(i,1)+'.txt',/append
-PRINTF,1,transpose([ad],[ade]]),FORMAT='(2F)'
+openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/amp_height/amp'+strtrim(i,1)+'.txt',/append
+PRINTF,1,transpose([[ad],[ade]]),FORMAT='(2F)'
 close,1
 
 ENDFOR

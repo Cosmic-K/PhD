@@ -39,7 +39,7 @@ d_lag1=shift_pv[1:(mid-1)]-phase_values[1:(mid-1)]
 
 d_lag2=shift_pv[(mid+2):*]-phase_values[(mid+2):*]
 
-d_lag_tot=[d_lag1,pvv[mid-1],pvv[mid+1],d_lag2]
+d_lag_tot=[d_lag1,phase_values[mid-1],phase_values[mid+1],d_lag2]
 
 ph_val=dx/dt*(1./d_lag_tot)
 
@@ -57,9 +57,9 @@ ph_val_er=ph_val*(dlagerror/d_lag_tot)
 ;some plotting against height
 
 set_plot,'ps'
-device,/encapsul,/color,filename='h_vs_ph'+strtrim(i,1)+'.ps'
-h=findegen(n_elements(ph_val)*Mm
-plot,h,abs(ph_val)
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/ph_height/h_vs_ph'+strtrim(i,1)+'.ps'
+h=findgen(n_elements(ph_val))*Mm
+plot,h,abs(ph_val),xtitle='Height along structure (Mm)',ytitle='Phase speed (km/s)'
 errplot,h,abs(ph_val)-ph_val_er,abs(ph_val)+ph_val_er,thick=2
 
 ;!Y.OMargin = [2, 8]
@@ -69,10 +69,8 @@ errplot,h,abs(ph_val)-ph_val_er,abs(ph_val)+ph_val_er,thick=2
 device,/close
 
 
-
-
-openw,1,'phase_speed_values'+strtrim(i,1)+'.txt',/append
-PRINTF,1,transpose([ph_val],[ph_val_er]]),FORMAT='(2F)'
+openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/ph_height/phase_speed_values'+strtrim(i,1)+'.txt',/append
+PRINTF,1,transpose([[ph_val],[ph_val_er]]),FORMAT='(2F)'
 close,1
 
 
