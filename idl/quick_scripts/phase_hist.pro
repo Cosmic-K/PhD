@@ -15,7 +15,7 @@ FREE_LUN, lun
 
 ;For some reason the array starts from index 1
 weighted_ph=0
-
+tot=0
 
 FOR i=1,(n_elements(array)-1) DO BEGIN
 data=read_table(array[i])
@@ -25,7 +25,7 @@ sz=size(data)
 phase_values=data[0,0:sz(2)-3]/(dx/dt)
 phase_errors=data[1,0:sz(2)-3]/(dx/dt)
 
-in=(where(abs(phase_values) LT 10))
+in=(where(abs(phase_values) LT 11))
 ;phase_errors=phase_error[(where(abs(phase_value) LT 10))]
 
 ;print,phase_values
@@ -50,8 +50,10 @@ ENDFOR
 d=d[1:*]
 de=de[1:*]
 
+IF total(in) NE -1 THEN BEGIN
 d=d[in]
 de=de[in]
+ENDIF
 
 dd=d[(where(abs(d) NE 0))]
 dde=de[(where(abs(d) NE 0))]
@@ -63,13 +65,13 @@ dde=de[(where(abs(d) NE 0))]
 
 ;weighted mean
 weighted_ph=[temporary(weighted_ph),total(abs(dd)/(dde^2))/total(1/(dde^2))]
-
+tot=[temporary(tot),dd]
 ENDFOR
 
 weighted_ph=weighted_ph[1:*]
+tot=tot[1:*]
 
-
-cghistoplot,dd,binsize=100,xtitle='Phase speed (km/s)',ytitle='Density',output='ps',/fill,/window
+cghistoplot,weighted_ph,binsize=100,xtitle='Phase speed (km/s)',ytitle='Density',output='ps',/fill,/window
 
 
 END

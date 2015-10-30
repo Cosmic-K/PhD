@@ -31,6 +31,8 @@ IF file_ch EQ 1 THEN BEGIN
 restore,f
 var=threads_fit_fg.fit_result_pos
 var=var[*,1:*]
+;print,var
+;print,'..............................'
 ad=[temporary(ad),abs(var(1))]
 pd=[temporary(pd),var(2)]
 ade=[temporary(ade),var(6)]
@@ -43,20 +45,29 @@ ENDFOR
 ;weighted mean
 ;print,ad
 ad=ad[1:*]
-pd=pd[1:*]
+;pd=pd[1:*]
 ade=ade[1:*]
-pde=pde[1:*]
+;pde=pde[1:*]
+in=where(pd gt 10)
+pd=pd[in]
+pde=pde[in]
 
 weighted_amp=[temporary(weighted_amp),total(abs(ad)/(ade^2))/total(1/(ade^2))]
+;print,pd
+;print,pde
+;print,total(abs(pd)/(pde^2))/total(1/(pde^2))
+;print,total(abs(pd))/n_elements(pd)
+;print,'.............................'
 weighted_per=[temporary(weighted_per),total(abs(pd)/(pde^2))/total(1/(pde^2))]
 
 ;need two of these one for amp one for period
 
 ENDFOR
-;print,weighted_amp
+
 ;print,weighted_per
 weighted_amp=weighted_amp[1:*]*km
 weighted_per=weighted_per[1:*]*1.343
+;print,weighted_per
 vel_amp=weighted_amp*((2*!PI)/weighted_per)
 
 ;cghistoplot,weighted_amp,binsize=50,xtitle='Amplitudes (km)',ytitle='Density',output='ps',/fill,/window

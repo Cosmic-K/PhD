@@ -5,10 +5,10 @@
 ;---------------------------------------------------------------------
 ;
 ;NOTES
-;#send coords to wave_track code to interp and make t/d
+;Radius and filenames to be check and changed as needed
 ;Cureenlty sunspot centre arbutarilly picked
 ;May use COG method or fititng to find centre
-;Output likely strcuture or array of time/distance
+;
 ;
 ;
 ;PURPOSE
@@ -23,15 +23,17 @@
 ;Coordiates of circle points sent to tracking routine for interping
 ;Based on ricks old code for tracking fibrial structures in straight line
 ;Double loop used to chnage radii and angle in one go.
-;TBC
+;
 ;---------------------------------------------------------------------
 
 
 ;INPUTS
 ;---------------------------------------------------------------------
 ;DATA -- DATA_IMAGE(x,y,t)
+;
 ;OUTPUTS
-;NOT YET DEFINED
+;---------------------------------------------------------------------
+;series of saved .idl file containing t/d diagram
 ;
 
 pro ss_track,data
@@ -39,15 +41,20 @@ pro ss_track,data
 ;DEFINE CONSTANTS
 ;---------------------------------------------------------------------
 Mm = (0.725/16.981891892)
-sz = size(data)
-r=[100,150,200,250,300] ; this may need modification
+r=[20,40,60,80,100,120,140,160,180,200,220,240,260,280] ; this may need modification
+num_r=n_elements(r)
 angle=findgen(361)*(!PI/180)
 tot_x=0
 tot_y=0
 
+zsize=n_elements(data[0,0,*])
+slit_lnth=round(2*!PI*r) ; may not be right
+
+r_index=findgen(num_r+1)*361
+
 ;INTITAL PLOTTING
 ;---------------------------------------------------------------------
-cgimage,data,/window,/axes,output='ps',/keep_aspect_ratio
+cgimage,data(*,*,0),/window,/axes,output='ps',/keep_aspect_ratio
 
 ;PICKING SUNSPOT CENTRE
 ;---------------------------------------------------------------------
@@ -57,7 +64,7 @@ cgplot,x,y,/window,psym=1,/overplot,color='yellow'
 ;PLOTTING CIRLCES AND GETTING X/Y COORDINATES
 ;---------------------------------------------------------------------
 
-FOR j=0,4 DO BEGIN
+FOR j=0,(num_r-1) DO BEGIN
 x1=0
 y1=0
 FOR i=0,360 DO BEGIN
@@ -73,14 +80,28 @@ tot_x=tot_x[1:*]
 tot_y=tot_y[1:*]
 
 
-;SENDING COORDS TO TRACKING
+;SENDING COORDS TO TRACKING TO MAKE T/D
 ;---------------------------------------------------------------------
 
-r_100=transpose([[tot_x[0:360]],[tot_y[0:360]]])
-r_150=transpose([[tot_x[361:721]],[tot_y[361:721]]])
-r_200=transpose([[tot_x[722:1082]],[tot_y[722:1082]]])
-r_250=transpose([[tot_x[1083:1443]],[tot_y[1083:1443]]])
-r_300=transpose([[tot_x[1444:1804]],[tot_y[1444:1804]]])
-;temporary what could be better is to send coords in 361 pairs straight to t/d part in a loop
+mindat=min(data)
+IF mindat GT 0 THEN mindat=-1. ELSE mindat=mindat-0.1*sqrt((moment(data))[1])
+
+FOR i=0, (num_r-1) DO BEGIN
+data_o=fltarr(slit_lnth[i],zsize)
+
+xx=congrid(tot_x[r_index(i):(r_index(i+1)-1)],slit_lnth[i],cubic=-0.5)
+yy=congrid(tot_y[r_index(i):(r_index(i+1)-1)],slit_lnth[i],cubic=-0.5)
+
+FOR j=0, (zsize-1) DO BEGIN
+
+data_o[*,j]=interpolate(reform(data[*,*,j]),xx,yy,cubic=-0.5,missing=mindat)
+
+ENDFOR
+
+save,data_o,description='radial time distance diagram with radius '+strtrim(i,1),filename='ss_test_'+strtrim(i,1)+'.idl'
+
+ENDFOR
+
+
 
 END

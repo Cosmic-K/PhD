@@ -289,18 +289,29 @@ pve=(1./all_lags)*(lag_er/all_lags)
 ;---------------------------------------------------------------------------------------------
 
 ;SECTION FOR CHNAGING THE ZERO POINT
-;NOT CARRIED FORWARD JUST FOR SEISMOLOGY STUFF
-;ARE THE ERRORS CORRECT?
-;
-;
+;NOT CARRIED FORWARD JUST FOR SIESMOLOGY STUFF
+;ARE THE ERRORS CORRECT????
+;Lose the middle value
+;do first minus the second except for ones next to the middle value
 
+mid=n_elements(pv)/2
 shift_pv=shift(pv,1)
-d_lag=pv[1:*]-shift_pv[1:*]
-ph_val=dx*d_lag
 
+d_lag1=shift_pv[1:(mid-1)]-pv[1:(mid-1)]
+d_lag2=shift_pv[1:(mid+2)]-pv[1:(mid+2)]
+d_lag_tot=[d_lag1,pv[mid-1],pv[mid+1],d_lag2]
+
+ph_val=dx*d_lag_tot
+
+ERRORS?
 spve=shift(pve,1)
-d_lag_er=sqrt(pve[1:*]^2+spve[1:*]^2)
-ph_val_er=ph_val*(d_lag_er/d_lag)
+
+d_lag_er1=sqrt(pve[1:(mid-1)]^2+spve[1:(mid-1)]^2)
+d_lag_er2=sqrt(pve[1:(mid+2)]^2+spve[1:(mid+2)]^2)
+
+dlagerror=[d_lag_er1,pve[mid-1],pve[mid+1],d_lag_er2]
+
+ph_val_er=ph_val*(dlagerror/d_lag_tot)
 
 openw,2,file_nm_2
 PRINTF,2,transpose([[ph_val],[ph_val_er]]),FORMAT='(2F)'
