@@ -23,7 +23,7 @@ int_time_pos=0
 
 width=3
 
-t=228
+t=226
 
 int_tube_list=fltarr(t)
 int_terror=fltarr(t)
@@ -45,10 +45,8 @@ ts_er = exp((a*ts_in^2)+(b*ts_in)+c)
 
 track_saus,data=smooth((-1.*ts_in),1),threads_fit_fg,threads,errors=ts_er,/patch
 
-
 print,'#####################################'
 print,'END OF FITTING BEGINING TUBE MASKING'
-
 
 sin_pos=threads_fit_fg.fit_result_pos
 sin_pos=sin_pos[*,1:*]
@@ -68,7 +66,6 @@ IF N_ELEMENTS(pos_size) EQ 5 THEN loopend = (pos_size(2)-1)
 FOR j=0, loopend DO BEGIN
 print, 'Thread start: ',sin_pos(11,j)*time,'  Thread end: ',sin_pos(12,j)*time
 ENDFOR
-
 
 IF loopend EQ 0 THEN BEGIN
 tube=[temporary(tube),pos]
@@ -151,7 +148,6 @@ ENDIF ELSE BEGIN
 use_singles=[temporary(use_singles),index]
 ENDELSE
 
-
 IF N_ELEMENTS(use_pairs) GT 2 THEN BEGIN
 use_pairs=use_pairs[1:*]
 pairs=intarr(N_ELEMENTS(use_pairs))
@@ -191,8 +187,8 @@ IF N_ELEMENTS(tube) GT t THEN tube=tube[0:(N_ELEMENTS(tube)-2)];remove padding c
 ENDIF
 ENDELSE
 
-help,tube
-help,int_tube_list
+;help,tube
+;help,int_tube_list
 int_tube_list=[[temporary(int_tube_list)],[tube]]
 int_terror=[[temporary(int_terror)],[tube_er]]
 
@@ -201,6 +197,6 @@ ENDFOR
 
 int_info={tube_list:(int_tube_list[*,1:*]*Mm),int_tube_error: int_terror[*,1:*]*Mm}
 
-save,int_info,filename='wm_int_22452940_4625.idl'
+save,int_info,filename='wm_int_.idl'
 
 END

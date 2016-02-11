@@ -28,7 +28,7 @@
 ;NOT YET DEFINED
 ;
 
-pro wave_time,data,wt
+pro wave_time,data,wt,time=time,x=x,y=y
 
 ;DEFINE CONSTANTS
 ;---------------------------------------------------------------------
@@ -38,7 +38,11 @@ zsize=n_elements(data[0,0,0,*])
 
 ;INTITAL PLOTTING
 ;---------------------------------------------------------------------
-cgimage,data(*,*,0,0),/window,/axes,output='ps',/keep_aspect_ratio
+IF NOT KEYWORD_SET(time) THEN time=7
+
+IF n_elements(x) EQ 0 THEN BEGIN
+
+cgimage,data(*,*,time,0),/window,/axes,output='ps',/keep_aspect_ratio
 
 ;PICKING LOCATION
 ;---------------------------------------------------------------------
@@ -50,9 +54,20 @@ cgplot,x,y,/window,psym=1,/overplot,color='yellow'
 
 x=round(x)
 y=round(y)
+ENDIF ELSE BEGIN
+
+x=round(x)
+y=round(y)
+
+ENDELSE
+
 
 FOR i=0,zsize-1  DO BEGIN
 wt(*,i)=reform(data(x,y,*,i))
-ENDFoR
+ENDFOR
 
 END
+
+
+
+

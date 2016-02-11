@@ -37,12 +37,10 @@
 ;Debug - optional shows plots
 
 
-PRO meas_alf,tel=tel,ter=ter,debug=debug
+PRO meas_test,tel=tel,ter=ter,p=p,q=q,debug=debug
 
 ;----------------------------------------------------------------------------
 ;CLOSING ANY OPEN FILES
-close,1
-close,2
 
 ;DEFINE CONSTANTS
 ;----------------------------------------------------------------------------
@@ -62,8 +60,7 @@ dt=1.343
 ;SETTING FILENAMES FOR OUPUTS
 ;----------------------------------------------------------------------------
 
-file_nm='13283752_1930_2.txt';will need to be chnaged between runs do not forget.
-file_nm_2='13283752_1930_2_phv_zero.txt'
+file_nm='null.txt';will need to be chnaged between runs do not forget.
 
 file_ch=file_test(file_nm)
 IF file_ch EQ 1 THEN BEGIN
@@ -82,16 +79,21 @@ len=findgen(n_elements(tl[*,last_time]))
 in=where(tl[*,last_time] ne -1)
 mn=min(tl[in,last_time])
 mx=max(tl[*,last_time])
+const=20
 
-cgwindow,'cgplot',len[in]*dt,tl[in,last_time]*Mm+(step*last_time)*Mm,yrange=[0,mx+step*last_time]*Mm,$
-xrange=[-17,n_elements(tl[*,last_time])+4]*dt,xst=1,xtitle='Time (s)',ytitle='Displacement (Mm)',charsize=1.5,charthick=1.9
+cgwindow,'cgplot',(len[in]*dt)+const*dt,tl[in,last_time]*Mm+(step*last_time)*Mm,xstyle=4,ystyle=4,thick=1
+cgAxis, YAxis=0,yrange=[0,mx+step*last_time]*Mm,title='Displacement (Mm)',/window,ythick=2,charthick=1,charsize=1.5
+cgAxis, XAxis=0,xrange=[-20,208]*dt,title='Time (s)',/window,xthick=2,charthick=1,charsize=1.5,xstyle=1,/data
+cgAxis, YAxis=1,/window,ythick=2,YTICKFORMAT="(A1)"
+cgAxis, XAxis=1,/window,xthick=2,XTICKFORMAT="(A1)"
+
 FOR i=start,last_time DO BEGIN
 in=where(tl[*,i] ne -1)
-IF i EQ 0 THEN cgplot,len[in]*dt,tl[in,i]*Mm,/window,/overplot ELSE cgplot,len[in]*dt,tl[in,i]*Mm+step*i*Mm,/window,/overplot
-IF i EQ 0 THEN cgerrplot,len[in]*dt,tl[in,i]*Mm+tl_er[in,i]*Mm,tl[in,i]*Mm-tl_er[in,i]*Mm,/addcmd,thick=0.001,width=0.005 ELSE cgerrplot,len[in]*dt,tl[in,i]*Mm+tl_er[in,i]*Mm+step*i*Mm,tl[in,i]*Mm-tl_er[in,i]*Mm+step*i*Mm,/addcmd,thick=0.001,width=0.005
+IF i EQ 0 THEN cgplot,(len[in]*dt)+const*dt,tl[in,i]*Mm,thick=1,/window,/overplot ELSE cgplot,(len[in]*dt)+const*dt,tl[in,i]*Mm+step*i*Mm,thick=1,/window,/overplot
+IF i EQ 0 THEN cgerrplot,(len[in]*dt)+const*dt,tl[in,i]*Mm+tl_er[in,i]*Mm,tl[in,i]*Mm-tl_er[in,i]*Mm,/addcmd,thick=0.0001,width=0.005 ELSE cgerrplot,(len[in]*dt)+const*dt,tl[in,i]*Mm+tl_er[in,i]*Mm+step*i*Mm,tl[in,i]*Mm-tl_er[in,i]*Mm+step*i*Mm,/addcmd,thick=0.0001,width=0.005
 
-IF i EQ 0 THEN cgtext,in[0]*dt-7*dt,[tl[in[0],i]]*Mm -1*Mm,strtrim(i,2),/window $
-ELSE cgtext,in[0]*dt-7*dt,[tl[in[0],i]]*Mm+step*i*Mm -1*Mm,strtrim(i,2),/window
+IF i EQ 0 THEN cgtext,len[in[0]]*dt+const*dt-7*dt,[tl[in[0],i]]*Mm -1*Mm,strtrim(i,2),charsize=0.98,/window,/data $
+ELSE cgtext,len[in[0]]*dt+const*dt-7*dt,[tl[in[0],i]]*Mm+step*i*Mm -1*Mm,strtrim(i,2),charsize=0.98,/window,/data
 
 ENDFOR
 
@@ -99,17 +101,35 @@ ENDFOR
 ;------------------------------------------------------------------------------
 ;
 
+IF keyword_set(p) THEN BEGIN
+
+x1=q
+x=p
+
+vline,(x*dt)+const*dt,color='red',linestyle=2,thick=3,/win
+vline,(x1*dt)+const*dt,color='red',linestyle=2,thick=3,/win
+
+ENDIF ELSE BEGIN
+
+
 pick,x,y,/window
 pick,x1,y1,/window
 x111=fix(x1+0.5)
 x11=fix(x+0.5)
-print,'x=',x11,' x1=',x111
+print,'x= '+strtrim(x11,1)+'s','  x1= '+strtrim(x111,1)+'s'
 
 x1=fix(x1/dt)
 x=fix(x/dt)
 
-print,x,x1
+vline,x,color='red',linestyle=2,thick=3,/win
+vline,x1,color='red',linestyle=2,thick=3,/win
+
+ENDELSE
+
+
+print,'Index time values: ','x= '+strtrim(x,1),'  x1= '+strtrim(x1,1)
 nt=x1-x+1
+
 
 ;PICKING WHICH SERIES TO USE
 ;------------------------------------------------------------------------------
@@ -194,7 +214,6 @@ cc_peak=fltarr(last_time)
 lags=fltarr(500)
 peaks=fltarr(500)
 
-
 test_noise=randomn(seed,d_s(1),500)
 ref_noise=randomn(seed,d_s(1),500)
 
@@ -224,25 +243,30 @@ ENDFOR
 constrain_lags=lags(where((peaks gt 0)))
 constrain_peaks=peaks(where((peaks gt 0)))
 
-plothist,constrain_lags,xhist,yhist,/autobin,/noplot
-est=[max(yhist),median(constrain_lags),0.1]
-fit=gaussfit(xhist,yhist,coeff,estimates=est,sigma=errors,chisq=chi,nterm=3)
+save,constrain_lags,filename='hist_lags.idl'
+
+cghistoplot,constrain_lags,histdata=hd,locations=loc
+;est=[max(yhist),median(constrain_lags),0.1]
+fit=gaussfit(loc+0.05,hd,coeff,sigma=errors,chisq=chi,nterm=3)
 
 ;DEBUG PLOTS
 ;-------------------------------------------------------------------------------
 
 IF keyword_set(debug) THEN BEGIN
 
-plot,constrain_peaks,constrain_lags,psym=1
-pause
+;plot,constrain_peaks,constrain_lags,psym=1
+;pause
 
-plothist,constrain_lags,xhist,yhist,/autobin,/noplot
-cghistoplot,constrain_lags,/window,xtitle='Lags'
-cgplot,xhist,fit,/window,/overplot
-vline,coeff(1)
-vline,median(constrain_lags),color=100,linestyle=1,thick=2
-pause
+;plothist,constrain_lags,xhist,yhist,/autobin,/noplot
+cghistoplot,constrain_lags,/window,thick=1,/fill,polycolor='Cornflower Blue',datacolorname='black',xstyle=4,ystyle=4
+cgAxis, YAxis=0,title='Density',/window,ythick=2,charthick=1,charsize=1.5
+cgAxis, XAxis=0,title='Lags',/window,xthick=2,charthick=1,charsize=1.5
+cgAxis, YAxis=1,/window,ythick=2,YTICKFORMAT="(A1)"
+cgAxis, XAxis=1,/window,xthick=2,XTICKFORMAT="(A1)"
 
+cgplot,loc+0.063/2,fit,/window,/overplot,thick=2
+vline,coeff(1),color='red',linestyle=2,thick=3,/win
+pause
 ENDIF
 
 all_lags[i+last_time/2]=coeff(1)
@@ -267,64 +291,29 @@ i_yfit = param[0] + np*param[1]
 ;PLOTTING LAGS
 ;-------------------------------------------------------------------------------
 
-cgwindow,'cgplot',np,all_lags,xmargin=[8,7],ymargin=[4,4],xstyle=4,ystyle=4
-cgerrplot,np,all_lags+lag_er,all_lags-lag_er,/addcmd
-cgplot,np,i_yfit,/overplot,/window,color='red',thick=1.8
-cgAxis, YAxis=0,yrange=[-1+min(all_lags),1+max(all_lags)],title='Lag values',/window,ystyle=1
-cgAxis, XAxis=0,xrange=[min(np)-0.05,max(np)+0.05],title='Time series number',/window,xstyle=1
-cgAxis, YAxis=1, yrange=[-1+min(all_lags),1+max(all_lags)]*dt,/window,title='Time lag (s)',ystyle=1
-cgAxis, XAxis=1,xrange=[min(np)-0.05,max(np)+0.05]*dx,/window,title='Distance (km)',xstyle=1
+print,np
+
+cgwindow,'cgplot',np+0.5,all_lags,xmargin=[8,7],ymargin=[4,4],xstyle=4,ystyle=4,thick=1.7
+cgerrplot,np+0.5,all_lags+lag_er,all_lags-lag_er,/addcmd
+cgplot,np+0.5,i_yfit,/overplot,/window,color='red',thick=1.8
+cgAxis, YAxis=0,yrange=[min(all_lags),max(all_lags)],title='Lag values',/window,ythick=2,charthick=1,charsize=1.5,ystyle=2,/data
+cgAxis, XAxis=0,xrange=[min(np)-0.5,max(np)+0.5],title='Time series number',/window,xthick=2,charthick=1,charsize=1.5,xstyle=1,/data
+cgAxis, YAxis=1, yrange=[min(all_lags),max(all_lags)]*dt,/window,title='Time lag (s)',ythick=2,charthick=1,charsize=1.5,ystyle=2,/data
+cgAxis, XAxis=1,xrange=[min(np)-0.5,max(np)+0.5]*dx,/window,title='Distance (km)',xthick=2,charthick=1,charsize=1.5,xstyle=2,/data
+
 
 red_ch=float(chi)/(float(n_elements(np))-2-1.)
 a=string(red_ch,Format='(D0.2)')
 al_legend,'Reduced $\chi$!E2!N = '+strtrim(a,1),/window,bthick=2,charsize=1.2,charthick=1.7,background_color='rose'
 
+grad=param[1]
+grad_er=perr[1]
+
+ph_grad=(1./grad)*dx/dt
+ph_grad_er=ph_grad*(grad_er/grad)
 
 
 ;---------------------------------------------------------------------------------------------
-
-;SECTION FOR CHNAGING THE ZERO POINT
-;NOT CARRIED FORWARD JUST FOR SIESMOLOGY STUFF
-;ARE THE ERRORS CORRECT????
-;Lose the middle value
-;do first minus the second except for ones next to the middle value
-
-
-pvv=(all_lags)
-pvve=(lag_er)
-
-mid=n_elements(pvv)/2
-shift_pv=shift(pvv,1)
-
-d_lag1=shift_pv[1:(mid-1)]-pvv[1:(mid-1)]
-
-d_lag2=shift_pv[(mid+2):*]-pvv[(mid+2):*]
-
-d_lag_tot=[d_lag1,pvv[mid-1],pvv[mid+1],d_lag2]
-
-
-ph_val=dx/dt*(1./d_lag_tot)
-
-;ERRORS?
-spve=shift(pvve,1)
-
-d_lag_er1=sqrt(pvve[1:(mid-1)]^2+spve[1:(mid-1)]^2)
-d_lag_er2=sqrt(pvve[1:(mid+2)]^2+spve[1:(mid+2)]^2)
-
-dlagerror=[d_lag_er1,pvve[mid-1],pvve[mid+1],d_lag_er2]
-
-ph_val_er=ph_val*(dlagerror/d_lag_tot)
-
-openw,2,file_nm_2
-PRINTF,2,transpose([[ph_val],[ph_val_er]]),FORMAT='(2F)'
-close,2
-
-
-resul=poly_fit(findgen(n_elements(ph_val))*dx,ph_val,1,yfit=fitt,measure_errors=ph_val_er,sigma=sig)
-cgwindow,'cgplot',findgen(n_elements(ph_val))*dx,ph_val,xmargin=[8,7],ymargin=[4,4],xstyle=4,ystyle=4
-cgerrplot,findgen(n_elements(ph_val))*dx,ph_val+ph_val_er,ph_val-ph_val_er,/addcmd
-cgplot,findgen(n_elements(ph_val))*dx,fitt,/overplot,/window,color='red',thick=1.8
-
 
 ;---------------------------------------------------------------------------------------------
 
@@ -374,7 +363,11 @@ w_error=sqrt(1./total(1/dde^2))
 openw,1,file_nm
 PRINTF,1,transpose([[dd],[dde]]),FORMAT='(2F)'
 PRINTF,1,transpose([['',weighted_ph],['',w_error]]),FORMAT='(2F)'
+PRINTF,1,transpose([[all_lags],[lag_er]]),FORMAT='(2F)'
+PRINTF,1,transpose([['',ph_grad],['',ph_grad_er]]),FORMAT='(2F)'
+PRINTF,1,transpose([[th1],[th2]]),FORMAT='(2I)'
+PRINTF,1,transpose([[x],[x1]]),FORMAT='(2I)'
 close,1
 
-PRINT, weighted_ph,'+/-',w_error
+PRINT,'Mean Phase speed ',strtrim(weighted_ph,1)+' +/- '+strtrim(w_error,1)+' km/s'
 END

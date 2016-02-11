@@ -62,7 +62,7 @@ time_stamps=[0,227,455,681,908,1116]
 ;BEGINING TO LOOP OVER TIME INTERVALS IN TIME STAMPS
 ;----------------------------------------------------------------------------------
 
-FOR i=1,4 DO BEGIN
+FOR i=0,0 DO BEGIN
 
 ;CHNAGE DATA NAME SO OUTPUT NOT CHNAGED
 ;
@@ -211,20 +211,27 @@ tsysz = Mm*(float(szts(1))-1.0)
 ;--------------------------------------------------------------------------------------------------------------------------------------------------------'
 set_plot,'ps'
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
+device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/roi2.eps
+;Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_sum_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 
-!Y.OMargin = [2, 8]
-!X.OMargin = [2, 6]
-!P.Charsize=0.60
+!Y.OMargin = [5, 3]
+!X.OMargin = [5, 2]
 
-tvim,sum_im(*,*),xrange=[0,xsz],yrange=[0,ysz],xtitle='Mm',ytitle='Mm'
-plots,[(Mm*px1),(Mm*px2)],[(Mm*py1),(Mm*py2)],color=450
+tvim,sum_im(*,*),/noaxis
+axis,0,xaxis=0,charsize=1.5,xrange=[0,xsz],xtitle='Displacement (Mm)',xthick=3,charthick=4
+axis,0,yaxis=0,charsize=1.5,yrange=[0,ysz],ytitle='Displacement (Mm)',ythick=3,charthick=4
+axis,xaxis=1,xthick=3,XTICKFORMAT="(A1)"
+axis,yaxis=1,ythick=3,YTICKFORMAT="(A1)"
+
+plots,[(px1),(px2)],[(py1),(py2)],color=300,thick=3
 FOR j=0,(szts(3)-1) DO BEGIN
-plots,[(Mm*tcoords[0,j]),(Mm*tcoords[1,j])],[(Mm*tcoords[2,j]),(Mm*tcoords[3,j])],color=450
-cgtext,Mm*tcoords[0,j]+0.1,Mm*tcoords[2,j],strtrim((j+1),1),/data
+plots,[(tcoords[0,j]),(tcoords[1,j])],[(tcoords[2,j]),(tcoords[3,j])],color=450,thick=3
+cgtext,tcoords[0,j]+0.1,tcoords[2,j],strtrim((j+1),1),charsize=0.7, charthick=3,/data
 ENDFOR
 
 device,/close
+
+stop
 
 device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/Data/seismol/80967689_'+strtrim(px1,1)+strtrim(py1,1)+'_'+strtrim(i,1)+'/fov_80967689_'+strtrim(px1,1)+strtrim(py1,1)+'.eps'
 !Y.OMargin = [2, 8]
