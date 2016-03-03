@@ -36,22 +36,27 @@
 ;series of saved .idl file containing t/d diagram
 ;
 
-pro ss_track,data
+pro ss_track,data,data_o
+
 
 ;DEFINE CONSTANTS
 ;---------------------------------------------------------------------
 Mm = (0.725/16.981891892)
-r=[20,40,60,80,100,120,140,160,180,200,220,240,260,280] ; this may need modification
+r=[20,40,60,80,100,120,140,160,180,200,220,240,260,280,300,320,340,360] ; this may need modification
 num_r=n_elements(r)
 angle=findgen(361)*(!PI/180)
 tot_x=0
 tot_y=0
 
-zsize=n_elements(data[0,0,*])
+
 slit_lnth=round(2*!PI*r) ; may not be right
 
 r_index=findgen(num_r+1)*361
 
+;CHECKING DATA TYPE IF 3D OR 4D
+;---------------------------------------------------------------------
+IF n_elements(size(data)) EQ 6 THEN BEGIN
+zsize=n_elements(data[0,0,*])
 ;INTITAL PLOTTING
 ;---------------------------------------------------------------------
 cgimage,data(*,*,0),/window,/axes,output='ps',/keep_aspect_ratio
@@ -101,6 +106,69 @@ ENDFOR
 save,data_o,description='radial time distance diagram with radius '+strtrim(i,1),filename='ss_test_'+strtrim(i,1)+'.idl'
 
 ENDFOR
+
+ENDIF
+
+;---------------------------------------------------------------------
+;IF 4D DATA TYPE THEN
+;---------------------------------------------------------------------
+
+
+IF n_elements(size(data)) EQ 7 THEN BEGIN
+
+zsize=n_elements(data[0,0,0,*])
+;INTITAL PLOTTING
+;---------------------------------------------------------------------
+cgimage,data(*,*,0,0),/window,/axes,output='ps',/keep_aspect_ratio
+
+;PICKING SUNSPOT CENTRE
+;---------------------------------------------------------------------
+pick,x,y,/window
+cgplot,x,y,/window,psym=1,/overplot,color='yellow'
+
+;PLOTTING CIRLCES AND GETTING X/Y COORDINATES
+;---------------------------------------------------------------------
+
+FOR j=0,(num_r-1) DO BEGIN
+x1=0
+y1=0
+FOR i=0,360 DO BEGIN
+x1=[temporary(x1),(x+r(j)*cos(angle(i)))]
+y1=[temporary(y1),(y+r(j)*sin(angle(i)))]
+ENDFOR
+cgplot,x1[1:*],y1[1:*],/window,/overplot,color='white'
+tot_x=[temporary(tot_x),x1[1:*]]
+tot_y=[temporary(tot_y),y1[1:*]]
+ENDFOR
+
+tot_x=tot_x[1:*]
+tot_y=tot_y[1:*]
+
+
+;SENDING COORDS TO TRACKING TO MAKE T/D
+;---------------------------------------------------------------------
+
+mindat=min(data)
+IF mindat GT 0 THEN mindat=-1. ELSE mindat=mindat-0.1*sqrt((moment(data))[1])
+
+FOR k=0, 14 DO BEGIN
+FOR i=0, (num_r-1) DO BEGIN
+data_o=fltarr(slit_lnth[i],zsize)
+
+xx=congrid(tot_x[r_index(i):(r_index(i+1)-1)],slit_lnth[i],cubic=-0.5)
+yy=congrid(tot_y[r_index(i):(r_index(i+1)-1)],slit_lnth[i],cubic=-0.5)
+
+FOR j=0, (zsize-1) DO BEGIN
+
+data_o[*,j]=interpolate(reform(data[*,*,k,j]),xx,yy,cubic=-0.5,missing=mindat)
+
+ENDFOR
+
+save,data_o,description='radial time distance diagram with radius '+strtrim(i,1)+' in height '+strtrim(k,1),filename='ss_test_height'+strtrim(k,1)+'_rad'+strtrim(i,1)+'.idl'
+
+ENDFOR
+ENDFOR
+ENDIF
 
 
 

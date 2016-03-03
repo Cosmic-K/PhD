@@ -39,7 +39,7 @@ dat_im=dat(0:969,10:990,time_stamps(0):time_stamps(1))
 ;AVERAGING
 ;---------------------------------------------------------------------------
 ;sum data over time, 40 frames omitting first frame to avoid time boundries
-sum_dat_im=float(sum(dat_im(*,*,1:40),2))/41.0
+sum_dat_im=float(sum(dat_im(*,*,1:40),2))/40.0
 
 
 ;ESTIMATING NOISE

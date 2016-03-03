@@ -5,7 +5,7 @@ close,2
 close,3
 
 
-FOR i=1,28 DO BEGIN
+FOR i=21,21 DO BEGIN
 
 f='amp'+strtrim(i,1)+'.txt'
 amp_data=read_table(f)
@@ -45,15 +45,15 @@ rho_er = reform(rho*sqrt((4*amp_er/amps)^2+(4*amp_er(0)/amps(0))^2))
 
 
 
-openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis_nu/r_n/seis_r_'+strtrim(i,1)+'.txt',/append
+openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/r_n/seis_r_'+strtrim(i,1)+'.txt',/append
 PRINTF,1,transpose([[R],[R_er]]),FORMAT='(2F)'
 close,1
 
-openw,2,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis_nu/b_n/seis_b_'+strtrim(i,1)+'.txt',/append
+openw,2,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/b_n/seis_b_'+strtrim(i,1)+'.txt',/append
 PRINTF,2,transpose([[B],[B_er]]),FORMAT='(2F)'
 close,2
 
-openw,3,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis_nu/rho_n/seis_rho_'+strtrim(i,1)+'.txt',/append
+openw,3,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/rho_n/seis_rho_'+strtrim(i,1)+'.txt',/append
 PRINTF,3,transpose([[rho],[rho_er]]),FORMAT='(2F)'
 close,3
 

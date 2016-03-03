@@ -11,10 +11,12 @@
 ;----------------------------------------------------------
 ;LAMBDA -- rest wavelength in nm
 ;DELTA_LAMBDA -- chnage in wavelength
+
 FUNCTION vlos,lambda,delta_lambda
+
 ;CONSTANTS
 ;----------------------------------------------------------
-c=3E8
+c=2.99E8
 
 ;SPD OF LIGHT
 
@@ -33,3 +35,4 @@ print, vel
 return, vel
 
 END
+;w1-w2/w1*c

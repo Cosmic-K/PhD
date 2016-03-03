@@ -1,6 +1,6 @@
 PRO slit_spec,data1,data2,n,wt,td,td_disp
 
-spline_slit,data1,pickn=n,slits=td,distance=20,gpoints=gp,intim=data1(*,*,0),/vector
+spline_slit,data1,pickn=n,slits=td,distance=15,gpoints=gp,intim=data1(*,*,0),/vector
 
 wave_time,data2,wt,x=gp[0,0],y=gp[0,1]
 
@@ -27,10 +27,13 @@ ENDFOR
 
 
 
-tvim,unsharp(data=rotate(td_disp[*,*,0],3),dx=12),aspect=7
+tvim,unsharp(data=rotate(td_disp[*,*,2],3),dx=12),aspect=7
 
 window,1
 tvim,unsharp(data=wt,dx=10)
 
 
 END
+
+;FOR i=0, n_elements(idx)-2 DO $ IF i EQ 0 THEN td_disp(*,*,i)=sum(td[*,*,idx[i]:idx[i+1]],2) $ ELSE td_disp(*,*,i)=sum(td[*,*,idx[i]+1:idx[i+1]],2)
+
