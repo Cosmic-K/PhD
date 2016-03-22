@@ -31,7 +31,7 @@ vel=c*(float((z+1)^2 -1)/float((z+1)^2 +1))
 ;DISPLAY AND RETURN VELOCITY
 ;----------------------------------------------------------
 
-print, vel
+;print, vel
 return, vel
 
 END

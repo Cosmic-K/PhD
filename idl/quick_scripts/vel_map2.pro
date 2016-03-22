@@ -1,94 +1,110 @@
-pro vel_map2,data,map
-x=findgen(15)
+pro vel_map2,data,map,coords
 sz=size(data)
+ref_spec=854.2
 
-x=[ -0.94200000,-0.58000000,-0.39800000,-0.29000000,-0.21700000,-0.14500000,-0.073000000,0.0000000,0.073000000,0.14500000,0.21700000,0.29000000,0.39800000,0.58000000,0.94200000]+854.2
-
+x=[ -0.94200000,-0.58000000,-0.39800000,-0.29000000,-0.21700000,-0.14500000,-0.073000000,0.0000000,0.073000000,0.14500000,0.21700000,0.29000000,0.39800000,0.58000000,0.94200000]+8542
+coords=0
 
 map=fltarr(sz(1),sz(2));,sz(3))
 
-FOR e=0 ,  sz(1)-1     DO BEGIN
-FOR j=0  , sz(2)-1     DO BEGIN
+FOR e=0   , sz(1)-1     DO BEGIN
+FOR j=0 , sz(2)-1     DO BEGIN
 ;FOR k=0  , sz(2)-1     DO BEGIN
 
 d=reform(data[e,j,*,0])
 
 const=max(d)
+d=d-const
+d_cut=d[3:11]
+x_cut=x[3:11]
 
-;d=d-const
 
 meas_size=7
 start_val=2
-grad=300000
-len=meas_size/2
-
-m=moment(d,sdev=sd)
-der=randomn(seed,n_elements(d))*sd
-;der=sqrt(d)
-
-plot,x,d
-
-
-FOR i=start_val, (n_elements(d)-start_val-1) DO BEGIN
-print,i
-minval=min(d[i-2:i+2],xi)
-;print,xi
-
-;Wait till maximum is at centre of search bar
-IF xi EQ 2 THEN BEGIN
-vline,x[i-2]
-vline,x[i+2]
-
-
-in1=x[i-2:i]
-in2=x[i:i+2]
-
-res=linfit(in1,d[i-2:i],yfit=fit)
-res2=linfit(in2,d[i:i+2],yfit=fit2)
-
-print,res[1],res2[1]
-
-
-IF (res[1] LT -1*grad) AND (res2[1] GT grad) THEN BEGIN
-
-
-x2=x[(i-len):(i+len)]
-
-
-
-p=[min(d[(i-len):(i+len)],n),x2[n],0.22];(x[i+len]-x[i-len])]
-;par_in = replicate({fixed:0, limited:[0,0], limits:[0.D,0.D]},3)
-;par_in(2).fixed = 1
-
-;print,p
-f=mpfitpeak(x2,d[(i-len):(i+len)],res,nterms=4,errors=der[(i-len):(i+len)],perror=perr,/quiet,/gaussian)
-;res=mpfitfun('mygauss',x2,d[(i-len):(i+len)],der[(i-len):(i+len)],p,/quiet,perror=perr,parinfo=par_in)
-print,res
-
-ENDIF
-ENDIF
-ENDFOR
-
-print,e,j
+grad=190000
+len=2;meas_size/2
 
 ;plot,x,d+const
 
-;cgplot,x2,mygauss(x2,res)+const,linestyle=3,thick=4,/overplot,color='red',/window
-oplot,x2,f,linestyle=3,thick=4
-vline,res(1)
-;oploterror,res(1),-1*res(0)+const,perr(1),perr(0),psym=2
+FOR i=start_val, (n_elements(d_cut)-start_val-1) DO BEGIN
+;print,'i ',i
+minval=min(d_cut[i-2:i+2],xi)
 
-pause
-;mu=res(1)
-;ref_spec=7.20768
+;Wait till maximum is at centre of search bar
+IF xi EQ 2 THEN BEGIN
+;vline,x_cut[i-2]
+;vline,x_cut[i+2]
+;pause
+in1=x_cut[i-2:i]
+in2=x_cut[i:i+2]
 
-;delta_lambda=ref_spec-mu
+res1=linfit(in1,d_cut[i-2:i],yfit=fit)
+res2=linfit(in2,d_cut[i:i+2],yfit=fit2)
 
-;v=vlos(ref_spec,delta_lambda)/1000.
+;print,res1[1],res2[1]
+IF (res1[1] LT -1*grad) AND (res2[1] GT grad) THEN BEGIN
 
-;map[i,j]=v;-1*res(0)+const
+minpos=i-len
+maxpos=i+len
 
+;print,'mm ',minpos,maxpos
+
+x2=x_cut[minpos:maxpos]/10.0
+d2=d_cut[minpos:maxpos]
+
+m=moment(d_cut[minpos:maxpos],sdev=sd)
+der=randomn(seed,n_elements(d2))*sd
+
+
+line_centroid,x2,d2,cent,/silent
+
+p=[min(d2,n),cent,0.8,600]
+
+;print,'p ',p
+
+f=mpfitpeak(x2,d2,res,nterms=4,errors=der,estimates=p,perror=perr,/quiet,/moffat,/negative,chisq=chi)
+;print,'res ',res
+;print,chi
+
+IF chi GT 1e8 THEN BEGIN
+p1=[min(d2,n),cent,0.6,600]
+f=mpfitpeak(x2,d2,res,nterms=4,errors=der,estimates=p1,perror=perr,/quiet,/moffat,/negative,chisq=chi)
+;print,chi
+
+ENDIF
+
+IF chi GT 1e8 THEN BEGIN
+p2=[min(d2,n),cent,0.5,600]
+f=mpfitpeak(x2,d2,res,nterms=4,errors=der,estimates=p2,perror=perr,/quiet,/moffat,/negative,chisq=chi)
+;print,chi
+
+ENDIF
+
+ENDIF
+ENDIF
+ENDFOR
+
+;print,e,j
+
+IF (res1[1] LT -1*grad) AND (res2[1] GT grad) THEN BEGIN
+;plot,x/10.,d+const
+;oplot,x2,f+const,linestyle=3,thick=3
+;oploterr,res(1),res(0)+const,perr(1),perr(0),psym=5
+mu=res(1)
+delta_lambda=ref_spec-mu
+v=vlos(ref_spec,delta_lambda)/1000.
+map[e,j]=v
+;print,v
+;pause
+
+ENDIF ELSE BEGIN
+map[e,j]=-1.
+;print,map[i,j]
+coords=[temporary(coords),e,j]
+;print,'raa'
+ENDELSE
 ENDFOR
 ENDFOR
+coords=coords[1:*]
 
 END

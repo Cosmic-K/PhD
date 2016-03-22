@@ -1,9 +1,10 @@
 pro seis_plot,n
 
 
-indx=[1,2,5,6,8,9,10,11,12,14,15,17,18,20,21,22,25,26,27,28]
+;indx=[1,2,5,6,8,9,10,11,12,14,15,17,18,20,21,22,25,26,27,28]
 ;3
-
+;indx=[2,5,9,10,11,12,15,21,25,27,28];pos grd
+indx=[1,6,8,14,17,22,26];neg grd
 
 Mm = (0.725/16.981891892)
 r_seis=read_table('r_n/seis_r_1.txt')
@@ -18,7 +19,7 @@ x=findgen(n_elements(r))*Mm
 !Y.MARGIN=[4,2]
 
 
-cgwindow,'cgplot',x,r,xtitle='Height along structure (Mm)',ytitle='R/R0',charsize=1.5 ,charthick=1,xthick=1.7,ythick=1.7,thick=1.5,yrange=[0.5,3.5],xrange=[-0.05,0.4],xstyle=1,ystyle=1,/nodata
+cgwindow,'cgplot',x,r,xtitle='Height along structure (Mm)',ytitle='R/R0',charsize=1.5 ,charthick=1,xthick=1.7,ythick=1.7,thick=1.5,yrange=[0.5,1.6],xrange=[-0.05,0.4],xstyle=1,ystyle=1,/nodata
 ;cgerrplot,x,r+r_er,r-r_er,/addcmd,thick=0.01,width=0.005
 
 

@@ -31,17 +31,25 @@ xdex=xdex[3:11]
 
 line_centroid,xdex,d_cut,cent,wrange=xdex[0:8],min=min(d_cut),/silent
 
+;res=poly_fit(xdex,d_cut,2,yfit=ff)
+;x_cen=float(-1*res(1))/float(2*res(2))
+;y_cen=res(2)*x_cen^2+res(1)*x_cen+res(0)
+
 minpos=round(cent-2)
 maxpos=round(cent+2)
 
-IF maxpos EQ 9 THEN maxpos=8
+print, minpos,maxpos
+IF maxpos EQ 15 THEN maxpos=14
 IF minpos LT 0 THEN minpos=0
+
+print,x
+print,x_cut
+print,xdex
 
 d2=d_cut[minpos:maxpos]
 x2=x_cut[minpos:maxpos]/10.
 
-
-
+print,x2
 
 diff=maxpos-minpos+1
 
@@ -58,7 +66,7 @@ f=mpfitpeak(x2,d2,a,nterms=4,errors=der,estimates=p,perror=perr,/quiet,/moffat)
 ;res=mpfitfun('mygauss',x[minpos:maxpos],d[minpos:maxpos],der,p,/quiet,perror=perr,parinfo=par_in)
 ;print,a
 
-print,x2
+
 
 ;print,i,j
 
