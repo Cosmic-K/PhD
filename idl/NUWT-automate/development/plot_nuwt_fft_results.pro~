@@ -1,0 +1,251 @@
+;+
+;NAME: PLOT_NUWT_FFT_RESULTS
+;
+;PURPOSE: 
+;   Plots the FFT wave results from 'wave_from_fft.pro' for each thread as a
+;   seperate multi-panel plot in a single PDF. Also prints various parameters
+;   for diagnostic purposes.
+;
+;INPUTS:
+;   None directly. Loads in the common blocks containing the results from
+;   'locate_things.pro' (not currently used), 'follow_thread.pro', and 
+;   'wave_from_fft.pro'
+;
+;OPTIONAL INPUTS:
+;   dx - spatial sampling of data (in km). default is 1
+;   dt - temporal sampling of the data (in s). default is 1
+;   units_dist - string indicating what units to use for distance in the plot
+;                labels & wave parameters. Defaults to units of 'pixels'
+;   units_time - string indicating what units to use for time in the plot
+;                labels & wave parameters. Defaults to units of 'steps'
+;
+;OUTPUTS: 
+;   PDF_file - multi-page PDF containing FFT results and diagnostics for each
+;              thread / set of waves found. If there are multiple significant
+;              wave results, the program will plot the combined waveform of
+;              the two waves with the highest power.
+;
+;HISTORY: Name---------Date---------Description
+;         M Weberg  30 JUNE, 2016  Initial coding
+;
+;TO-DO / LIMITATIONS:
+;   - Add in unit conversions / calculations
+;   - Add inputs for meta-data indicating the data and source of observations.
+;   - Currently will only plot the combined wave from the two largest waves
+;     found in the FFT even if there are more statisticaly significant waves.
+;     However, this should not be too much a problem as 3 or 4 waves are
+;     fairly rare (as far as I know at this time).
+;-
+
+FUNCTION TEST_FFT_WAVE_FUNCTION, amplitude_in, freq_in, phase_in, total_len, dt=dt
+    IF NOT keyword_set(dt) THEN dt = 1.0
+    ;print, 'input wave parameters: amp =', amplitude_in, ' freq =', freq_in, ' phase =', phase_in, ' total len', total_len
+    wave_func = amplitude_in*cos(2.0*!PI*freq_in*findgen(total_len)*dt+phase_in)
+    ;print, 'num vals returned =', n_elements(wave_func)
+    ;if n_elements(wave_func) EQ 1 THEN print, 'wave val =', wave_func
+RETURN, wave_func
+END
+
+PRO PLOT_NUWT_FFT_RESULTS, dx=dx, dt=dt, units_dist=units_dist, units_time=units_time
+
+;###############################################
+;INITIAL HOUSE KEEPING
+;###############################################
+
+COMMON located_dat, located, nx, nt
+COMMON threads_dat, threads
+COMMON fft_results_dat, fft_results
+
+;Setting default values
+IF NOT keyword_set(units_dist) THEN units_dist = 'km'
+IF NOT keyword_set(units_time) THEN units_time = 's'
+IF NOT keyword_set(dx) THEN units_dist = 'pixels'
+IF NOT keyword_set(dt) THEN units_time = 'steps'
+
+IF NOT keyword_set(dx) THEN dx = 1.0
+IF NOT keyword_set(dt) THEN dt = 1.0
+   
+sz = size(threads)
+n_threads = sz(1)
+
+;For reference, each element in fft_results contains a structure with the fft results for a single thread
+;the structure format is as follows:
+
+;result_th_fft = {power:fltarr(nf), $
+;                 amplitude:fltarr(nf), $
+;                 freq:fltarr(nf), $
+;                 duration_series:fltarr(nf), $
+;                 phase:fltarr(nf), $
+;                 peak_power:[0.0, 0.0, 0.0, 0.0], $        ;power in four largest, statistically significant peaks
+;                 peak_amplitude:[0.0, 0.0, 0.0, 0.0], $
+;                 peak_freq:[0.0, 0.0, 0.0, 0.0], $
+;                 peak_phase:[0.0, 0.0, 0.0, 0.0], $
+;                 peak_bin:[-1, -1, -1, -1], $
+;                 num_signif_peaks:0, $
+;                 start_bin:-1, $
+;                 end_bin:-1, $
+;                 thread_length:-1, $
+;                 fft_length:-1, $
+;                 trend:fltarr(len_thread), $
+;                 apod_window:fltarr(len_thread), $
+;                 window_func:'not_applicable', $
+;                 window_param:-1.0, $
+;                 cpg:-1.0, $
+;                 bin_flags:intarr(nf), $
+;                 signif_vals:fltarr(nf), $
+;                 signif_level:0.0, $
+;                 signif_test:'not_applicable'}
+
+;Quick key for values in 'bin_flags' :
+;   -2 : invalid thread (too litle real data)
+;   -1 : empty or invalid frequency bin (not used in fft of particular thread)   
+;    0 : fft result below selected significance level
+;    1 : significant value in fft result
+;    2 : local maximum in nearby significant fft results
+
+;###############################################
+;INITIALIZE THE OUTPUT WINDOW
+;###############################################
+fig_fft = window(name='fig_fft', dimensions=[1200, 645], /buffer)
+
+FOR h=0, (n_threads-1) DO BEGIN
+    ;print, 'Thread number', h
+    tpos = threads[h].pos ;dummy array with postions of the selected thread
+    terr = threads[h].err_pos ;errors on postions of thread
+    th_flags = threads[h].bin_flags ;flags for thread data quality
+    
+    res = fft_results[h] ;results from 'wave_from_fft.pro'
+    tpos = tpos[res.start_bin:res.end_bin]
+    terr = terr[res.start_bin:res.end_bin]
+    trend = res.trend
+
+    s_len = res.thread_length
+    ts_xvals = (findgen(s_len) + res.start_bin)*dt
+
+    ;Finding wave properties (including any secondary waves)
+    index_primary_peak = res.peak_bin[0]
+    index_secondary_peak = res.peak_bin[1] 
+    IF index_primary_peak GT -1 THEN BEGIN
+        func_1 = TEST_FFT_WAVE_FUNCTION(res.peak_amplitude[0], res.peak_freq[0], res.peak_phase[0], s_len, dt=dt)
+
+        ;finding the secondary wave (if present)
+        IF index_secondary_peak GT -1 THEN BEGIN
+            func_2 = TEST_FFT_WAVE_FUNCTION(res.peak_amplitude[1], res.peak_freq[1], res.peak_phase[1], s_len, dt=dt)
+            wave_vals = func_1 + func_2
+        ENDIF ELSE BEGIN
+            wave_vals = func_1
+        ENDELSE
+    ENDIF ELSE BEGIN
+        wave_vals = fltarr(s_len)
+    ENDELSE
+    
+    residuals = tpos - (wave_vals + trend)
+    chi_sqrd = total(residuals^2/variance(tpos))
+    
+    ;Extracting various bits of information for printing
+    num_good_pnts = n_elements(th_flags[where(th_flags EQ 2, /NULL)]) 
+    num_filled_pnts = s_len - num_good_pnts
+    percent_filled = (100.0*num_filled_pnts)/s_len 
+    num_freq_bins = n_elements(res.freq)
+    num_fft_pad_zeros = res.fft_length - s_len
+    IF num_fft_pad_zeros GT 0 THEN tag_smpad = 'YES' ELSE tag_smpad = 'no'
+
+    mean_trend = mean(trend)*dx
+    slope_trend = (trend[-1] - trend[0])/(ts_xvals[-1] - ts_xvals[0])
+
+    ;##### UPPER LEFT SUBPLOT #####
+    ;Plot the time series of thread positions along with apodized values and estimated wave
+    plt_pos = errorplot(ts_xvals, tpos*dx, terr, name='Observed', $
+                        color='blue', symbol='o', /sym_filled, linestyle='none', errorbar_color='blue',$
+                        position=[0.05, 0.52, 0.35, 0.9], /current)
+
+    plt_apod_pos = plot(ts_xvals, (tpos-trend)*res.apod_window*dx + trend, name='Windowed', $
+                        color='sky blue', symbol='x', linestyle='none', /overplot)
+
+    plt_trend = plot(ts_xvals, trend*dx, name='Trend', color='black', symbol='none', linestyle=':', /overplot)
+
+    plt_wave = plot(ts_xvals, (wave_vals + trend)*dx, name='Fit Wave', $
+                    color='black', symbol='none', linestyle='-', /overplot)
+
+    leg_pos = legend(target=[plt_pos, plt_apod_pos, plt_trend, plt_wave], /normal, position=[0.485, 0.9], $
+                     linestyle='none', font_size=12)
+    plt_pos.title = 'Time Series'    
+    plt_pos.ytitle = 'Distance ['+units_dist+']'
+
+    ;##### LOWER LEFT SUBPLOT #####
+    ;Plot the residuals of the time series (i.e. what is left after subtracting the 'fit' function)
+    plt_residuals = plot(ts_xvals, residuals*dx, color='blue', symbol='none', linestyle='-', $
+                         position=[0.05, 0.1, 0.35, 0.48], /current)
+    plt_residuals.ytitle = 'Residuals ['+units_dist+']'
+    plt_residuals.xtitle = 'Time ['+units_time+']'
+
+    ;##### UPPER RIGHT SUBPLOT #####
+    ;Plot fft power spectrum with the significance limit
+    plt_pow = plot(res.freq, res.power, name='FFT results', $
+                   color='black', symbol='none', linestyle='-', $
+                   position=[0.55, 0.52, 0.85, 0.9], /current, /stairstep)
+
+    plt_signif_pow = plot(res.freq, res.signif_vals, name='Signif. limit', $
+                          color='black', symbol='none', linestyle='--', /overplot)
+                          
+    plt_primary_peak = plot([res.peak_freq[0], res.peak_freq[0]], [res.peak_power[0], res.peak_power[0]], name='Primary Peak', $
+                            color='red', symbol='d', linestyle='none', /overplot)
+
+    plt_secondary_peak = plot([res.peak_freq[1], res.peak_freq[1]], [res.peak_power[1], res.peak_power[1]], name='Second. Peak', $
+                            color='orange', symbol='*', linestyle='none', /overplot)
+
+    leg_fft = legend(target=[plt_pow, plt_signif_pow, plt_primary_peak, plt_secondary_peak], /normal, position=[1.0, 0.9], $
+                     linestyle='none', font_size=12)
+    plt_pow.title = 'FFT'    
+    plt_pow.ytitle = 'Power'
+    plt_pow.xtitle = 'Frequency [1/'+units_time+']'
+
+    ;##### PRINTED TEXT #####
+    ;Printing useful information in the plot
+    txt_thread_ID = text(0.05, 0.95, 'Thread # '+strtrim(string(h+1)), font_size=14, font_style=1)
+
+    txt_trend = text(0.365, 0.67, 'Linear Trend:$\n$   '+$
+                     'mean = '+strtrim(string(mean_trend), 1)+'$\n$   '+$
+                     'slope = '+strtrim(string(slope_trend), 1), font_size=12)
+    txt_thread_len = text(0.365, 0.57, strtrim(string(res.thread_length), 1)+' data points:$\n$   '+$
+                          strtrim(string(num_good_pnts), 1)+' good$\n$   '+$
+                          strtrim(string(num_filled_pnts), 1)+' filled', font_size=12)
+    txt_percent_filled = text(0.365, 0.52, strtrim(string(percent_filled), 1)+'% filled', font_size=12)
+    
+    txt_freq_len = text(0.86, 0.70, strtrim(string(num_freq_bins), 1)+' freq. bins', font_size=12)
+    txt_fft_len = text(0.86, 0.57, strtrim(string(res.fft_length), 1)+' points input to FFT:$\n$   '+$
+                          strtrim(string(res.thread_length), 1)+' data (windowed)$\n$   '+$
+                          strtrim(string(num_fft_pad_zeros), 1)+' zeros (padding)', font_size=12)
+       
+    txt_result_header = text(0.365, 0.45, 'Results', font_size=14, font_style=1)
+    txt_primary_results = text(0.365, 0.30, 'Primary Wave$\n$'+$
+                               '   peak power = '+strtrim(string(res.peak_power[0]), 1)+'$\n$'+$
+                               '   amplitude = '+strtrim(string(res.peak_amplitude[0]), 1)+'$\n$'+$
+                               '   frequency = '+strtrim(string(res.peak_freq[0]), 1)+'$\n$'+$
+                               '   phase = '+strtrim(string(res.peak_phase[0]), 1), font_size=12)
+    txt_secondary_results = text(0.365, 0.15, 'Secondary Wave$\n$'+$
+                                 '   peak power = '+strtrim(string(res.peak_power[1]), 1)+'$\n$'+$
+                                 '   amplitude = '+strtrim(string(res.peak_amplitude[1]), 1)+'$\n$'+$
+                                 '   frequency = '+strtrim(string(res.peak_freq[1]), 1)+'$\n$'+$
+                                 '   phase = '+strtrim(string(res.peak_phase[1]), 1), font_size=12)
+    txt_chi_sqrd = text(0.365, 0.095, '$\chi^2$ = '+strtrim(string(chi_sqrd), 1), font_size=12)
+
+    txt_fft_header = text(0.60, 0.41, 'FFT Details', font_size=14, font_style=1)
+    txt_window_func = text(0.60, 0.34, 'Window Function:$\n$   '+res.window_func, font_size=12)
+    txt_window_param = text(0.60, 0.31, 'Window Parameter: '+strtrim(string(res.window_param), 1), font_size=12)
+    txt_smpad = text(0.60, 0.28, 'Coherent power gain = '+strtrim(string(res.cpg), 1), font_size=12)
+    txt_smpad = text(0.60, 0.25, 'Smoothed & Padded? '+tag_smpad, font_size=12)
+    txt_signif_level = text(0.60, 0.15, 'Significance Level: '+strtrim(string(res.signif_level), 1), font_size=12)
+    txt_signif_test = text(0.60, 0.095, 'Significance Test:$\n$   '+res.signif_test, font_size=12)
+    
+    IF h LT (n_threads-1) THEN BEGIN
+        fig_fft.save, 'fft_results.pdf', bitmap=0, page_size=[12.0, 6.45], /append
+        fig_fft.erase
+    ENDIF ELSE BEGIN
+        fig_fft.save, 'fft_results.pdf', page_size=[12.0, 6.45], /append, /close
+    ENDELSE
+
+ENDFOR
+print, 'Finished ploting FFT results to a multi-page PDF!'
+END
+

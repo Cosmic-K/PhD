@@ -1,0 +1,62 @@
+;+
+;NAME: STANDARD_NORMAL_CDF
+;
+;PURPOSE: 
+;   Quantify the goodness-of-fit of a given data model by appliying two statistical
+;   tests on the residuals. Tests for both a normal distribution, using the
+;   Kolmogorov–Smirnov (KS) test, and autocovarience, using the Ljung–Box test.
+;
+;INPUTS:
+;   residuals - values obtained by subtracting a model results from the data
+;
+;OPTIONAL INPUTS:
+;   signif_level - significance level to use for determining the chi squared
+;                  cut-off limit for the Ljung-Box test. Default is 0.95
+;   fit_params - number of parameters fit by the model (or combination of models).
+;                Used to apply a correction to the degrees of freedom in determining
+;                the chi squared cut-off value. Default is 0 (no model)
+;   max_lag - maximum autocorrelation lag to include in Ljung-Box test.
+;             Default is num_residuals/2 (this is also the maximum value allowed)
+;
+;
+;OUTPUTS:
+;   test_stats - structure containing the test statistics as well as their
+;                threshold values and probabilities
+;
+; 
+;HISTORY: Name---------Date---------Description
+;         M Weberg  July, 2016 - Initial coding
+;-
+
+FUNCTION NORMAL_QUANTILES, num_quantiles
+N = n_elements(num_quantiles)
+
+IF N EQ 1 THEN n = num_quantiles
+
+
+;generate N numbers between 0 & 1 centered in thier respectfive value range
+halfstep = 1.0/(N*2.0)
+x_vals = findgen(N)/N + halfstep
+
+a = 0.147 ;Constant for calculating inverse ERF
+ln_term = ALOG(1.0 - (2*x_vals - 1.0)^2)
+combo_term = 2.0/(!PI*a) + ln_term/2.0
+
+;Uses the approximation inv_erf(x) = [-2/Pi*a - ln(1-x^2)/2 + SQRT((2/Pi*a + ln(1-x^2)/2)^2 - ln(1-x^2)/a)]^1/2
+inv_erf = SQRT(-combo_term + SQRT(combo_term^2 - ln_term/a))
+
+;Uses the equation Normal Quantiles = SQRT(2)*inv_erf(2x-1)
+norm_Q = sqrt(2)*inv_erf
+
+RETURN, norm_Q
+END
+
+FUNCTION STANDARD_NORMAL_CDF, x_vals 
+
+;norm_CDF = 0.5*(1+SIGNUM(x_vals)*SQRT(1 - EXP((-2.0/!Pi)*x_vals^2)))
+norm_CDF = 0.5*(1 + ERF(x_vals/SQRT(2)))
+
+RETURN, norm_CDF
+END
+
+

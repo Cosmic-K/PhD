@@ -1,0 +1,28 @@
+;+
+;NAME: CALC_AIA_171_ERROR
+;
+;PURPOSE: 
+;   Calculate the intensity errors (i.e. noise) for the SDO / AIA 171
+;   channel as determined by Yuan & Nakariakov, 2012 (A&A). 
+;
+;INPUTS:
+;   input_data - array of unaltered intensity values from AIA 171
+;
+;OUTPUTS: 
+;   output_data - array of intensity errors. Will have the same size and shape
+;                 as "input_data"
+;
+;HISTORY: Name---------Date---------Description
+;         M Weberg  7 JUNE, 2016  Initial coding
+;-
+
+FUNCTION CALC_AIA_171_ERROR, input_data
+
+output_data = SQRT(2.3 + 0.06*input_data)
+
+RETURN, output_data
+
+END
+              
+
+

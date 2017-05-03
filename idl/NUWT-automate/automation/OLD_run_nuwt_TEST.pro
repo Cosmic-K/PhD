@@ -1,0 +1,9 @@
+PRO RUN_NUWT, td_image, config=config, out=out
+
+RESOLVE_ROUTINE, config, /EITHER, /COMPILE_FULL_FILE
+
+LT_kwargs = kwargs_for_locate_things()
+help, LT_kwargs
+out = LT_KWARGS
+
+END

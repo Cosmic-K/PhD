@@ -1,0 +1,501 @@
+;+
+;NAME: WAVE_FROM_FFT_BOOTSTRAP
+;
+;PURPOSE: 
+;   Performs a Fast Fourier Transform (FFT) on the positions of each thread
+;   found by 'follow_thread.pro' and then calculates the Power Spectral Density 
+;   (PSD). Results are saved to a list of structures, one for each thread. Also 
+;   computes and saves a number of other variables and reference values for
+;   later plotting. Based on the program 'pwr_frm_fft.pro'. 
+;
+;INPUTS:
+;   None directly. Loads in the common block data from 'follow_thread.pro'.
+;
+;OPTIONAL INPUTS:
+;   dx - spatial sampling of data. default is 1
+;   dt - temporal sampling of the data. default is 1
+;   ctrend - if keyword set will remove linear trend from each thread. If not 
+;            set, the mean value will be removed instead (needed for a good FFT)
+;   smpad - SMooth And PAD - smooths the time-series using 3 pixel box-car average 
+;           and pads with zeros to increase frequency resolution
+;   num_pad_fft - number of zeros to pad onto the end of the data array before
+;                 computing the FFT. Defualt it 1000.
+;   include_nyquist - [EXPERIMENTAL!] For even number of data points, will
+;                     include the results at the nyquist frequency.
+;   window_func - select which windowing (also known as tappering or apodization)
+;                 function to apply to the data. Choose from 'split_cosine_bell'
+;                 (default) or 'hann'. See FFT tutorials / textbooks for more
+;                 information.
+;   window_param - set the parameter, p, to use in the generation of the window
+;                  function. For the split cosine bell window, p indicates the
+;                  total fraction of data that will be tappered (half on each end
+;                  of the data series). At p = 1.0, the split cosine bell window 
+;                  is identical to the hann window. Default is 0.4 (i.e. 40%)
+;   /vaughn - if set, will use the significance test from Vaughan 2005. Otherwise
+;             will default to the method of Torrence & Compo 1998.
+;   signif_levels - sets significance levels for FFT results (default=0.95)
+;   doplot - [OUTDATED] plots the threads and power spectra on screen for debugging
+;
+;OUTPUTS:
+;   fft_results - list of structures saved to the 'fft_results_dat' common block
+;                 Each structure contains the PSD results for a single thread.
+;                 The format of each structure is as follows:
+;
+;   result_th_fft = {power:fltarr(nf), $
+;                    amplitude:fltarr(nf), $
+;                    freq:fltarr(nf), $
+;                    phase:fltarr(nf), $
+;                    peak_power:[0.0, 0.0, 0.0, 0.0], $
+;                    peak_amplitude:[0.0, 0.0, 0.0, 0.0], $
+;                    peak_freq:[0.0, 0.0, 0.0, 0.0], $
+;                    peak_phase:[0.0, 0.0, 0.0, 0.0], $
+;                    peak_bin:[-1, -1, -1, -1], $
+;                    num_signif_peaks:0, $
+;                    start_bin:-1, $
+;                    end_bin:-1, $
+;                    thread_length:-1, $
+;                    fft_length:-1, $
+;                    trend:fltarr(len_thread), $
+;                    apod_window:fltarr(len_thread), $
+;                    window_func:'not_applicable', $
+;                    window_param:-1.0, $
+;                    cpg:-1.0, $
+;                    bin_flags:intarr(nf), $
+;                    signif_vals:fltarr(nf), $
+;                    signif_level:0.0, $
+;                    signif_test:'not_applicable'}
+
+;   Quick key for values in 'bin_flags' :
+;       -2 : invalid thread (too litle real data)
+;       -1 : empty or invalid frequency bin (not used in fft of particular thread)   
+;        0 : fft result below selected significance level
+;        1 : significant value in fft result
+;        2 : local maximum in nearby significant fft results
+;
+;EXTERNAL CALLS - locate_things_min.pro, locate_things.pro, follow_thread.pro, cospd.pro
+; 
+;HISTORY: Name---------Date---------Description
+;         R Morton  ???, 2014 - Initial coding of 'pwr_frm_fft.pro'
+;         R Morton  MAR, 2015 - Updated to include structures. [note: this older
+;                               format had much larger, mostly empty, arrays]. 
+;         M Weberg  JUNE, 2016 - Reworked the code. Seperated the FFT code (this
+;                                program) from the rest of the NUWT code, cleaned
+;                                up the logic a little bit, and added the new 
+;                                output format (with extra information for plotting)
+;
+;RESTRICTIONS: LOTS AT THE MOMENT. ROUTINE IS VERY MUCH DEPENDENT UPON USERS
+;
+;TO DO / RESTRICTIONS:
+;   - Currently only saves the wave parameters for the 4 largest, significant
+;     peaks. 5 or more peaks should not be all that common but we may be wrong...
+;     The 'num_signif_peaks' variable will still count correctly so, it may not
+;     be too hard to find the 'missing' wave parameters when needed (if ever).
+;   - Include an error estimation for the FFT results by using bootstrapping to
+;     create a 2D array of values based on the location and error of each thread
+;     position. Will most likely be a seperate script.
+;   - Add calculation for the power averaged over all threads. Use the following?
+;       "Average is calculated by creating frequency bins, taking the ln of power 
+;        in frequency bins, plot the ln power PDF and fitting a Gaussian. Centroid 
+;        of Gaussian (mu) gives median value of distribution, i.e. exp(mu)=median."
+;   - Add method to transfer results to a structure of arrays? This would allow
+;     cleaner & faster indexing later but will require the output array to be
+;     scaled for the largest results (with fill values for the smaller arrays).
+;-
+
+FUNCTION BOOTSTRAP_1D_DATA, data_in, errors_in, num_resamples=num_resamples
+    ;Notes: (1) this is designed only for 1D input arrays
+    ;       (2) if you are zero padding (for FFT), it is recommended to pad
+    ;           AFTER performing bootstrapping on the real data (saves time)
+    COMMON bootstrap_seed_num, bootseed
+
+    IF NOT keyword_set(num_resamples) THEN num_resamples = 1000
+
+    len_data = n_elements(data_in)
+    output_array = fltarr(len_data, num_resamples)
+    mean_array = rebin(data_in, len_data, num_resamples)
+    sigma_array = rebin(errors_in, len_data, num_resamples)
+
+    ;generate normally distributed numbers for each data point
+    FOR i=0L, (len_data-1) DO BEGIN
+        output_array[i,*] = RANDOMN(bootseed, num_resamples)
+    ENDFOR
+
+    ;adjust the mean and width to match the data points and their errors
+    ;we should then have noramally (i.e. gaussian) distributed numbers
+    ;centered on each point and sampled from a dist. with sigma = error
+    output_array = temporary(output_array)*sigma_array + mean_array
+
+RETURN, output_array
+END
+        
+;temproal apodization using a Split Cosine Bell (or Hann for p = 1.0) window
+FUNCTION GET_APOD_WINDOW, tn, cpg, parameter=p
+    w_t = fltarr(tn) + 1
+    
+    IF NOT keyword_set(parameter) THEN p = 0.4
+
+    num_taper = tn * (p / 2.0)
+    ;w_t[0] = 0.5*(1.0 - cos(2*!PI*findgen(num_taper)/(tn*p)))
+    w_t[0] = (sin(!PI*findgen(num_taper)/(tn*p)))^2
+    w_t = w_t*shift(rotate(w_t, 2), 1) ;the rotate simply reverses the values
+    cpg = total(w_t)/n_elements(w_t)
+RETURN, w_t
+END
+
+FUNCTION TEST_FFT_WAVE_FUNCTION, amplitude_in, freq_in, phase_in, total_len, dt=dt
+    IF NOT keyword_set(dx) THEN dx = 1.0
+    wave_func = amplitude_in*cos(2.0*!PI*freq_in*findgen(total_len)*dt+phase_in)
+RETURN, wave_func
+END
+
+PRO WAVE_FROM_FFT_BOOTSTRAP, dx=dx, dt=dt, ctrend=ctrend, smpad=smpad, num_pad_fft=num_pad_fft, $
+                             include_nyquist=include_nyquist, num_bootstrap=num_bootstrap, $ 
+                             window_func=window_func, window_param=window_param, $
+                             vaughan=vaughan, signif_levels=signif_levels, doplot=doplot 
+
+;###############################################
+;INITIAL HOUSE KEEPING
+;###############################################
+
+COMMON located_dat, located, nx, nt
+COMMON threads_dat, threads
+COMMON fft_results_dat, fft_results
+
+;Setting default values
+IF NOT keyword_set(dx) THEN dx = 1.0
+IF NOT keyword_set(dt) THEN dt = 1.0
+IF NOT keyword_set(num_bootstrap) THEN num_bootstrap = 1000
+IF NOT keyword_set(num_pad_fft) THEN num_pad_fft = 1000
+IF NOT keyword_set(window_func) THEN window_func = 'split_cosine_bell'
+IF NOT keyword_set(window_param) THEN window_param = 0.4
+IF strlowcase(window_func) EQ 'hann' THEN window_param = 1.0
+IF window_param EQ 1.0 THEN window_func = 'hann' 
+;note: a split cosine bell window with p = 1.0 is the same as the hann window
+IF NOT keyword_set(signif_levels) THEN signif_levels = 0.95
+
+sz = size(threads)
+n_threads = sz(1)
+;print,'Number of threads found', n_threads
+
+;create list to contain the results
+fft_results = LIST()
+;each element in fft_results will contain a structure with the fft results 
+;for a single thread. See the header for reference of the format.
+    
+;###############################################
+;PERFORM FOURIER ANALYSIS ON EACH GOOD THREAD
+;###############################################
+FOR h=0L, (n_threads-1) DO BEGIN
+
+    tpos = threads[h].pos[*] ;dummy array with postions of the selected thread
+    terr = threads[h].err_pos[*] ;errors on postions of thread
+    
+    ;Locate the start and end of thread
+    t_start = -1000
+    t_end = -1000 ;reset each time 
+     
+    loc_th_vals = where(tpos ne -1.0)
+    len_thread = n_elements(loc_th_vals)
+    t_start = loc_th_vals[0]
+    t_end = loc_th_vals[len_thread-1]
+    
+    ;Determine output array sizes
+    ;len_thread = (t_end - t_start) + 1
+
+    IF keyword_set(smpad) THEN len_fft_array = len_thread + num_pad_fft $
+        ELSE len_fft_array = len_thread
+    
+    IF keyword_set(include_nyquist) THEN BEGIN
+        nf = ceil((len_fft_array-1)/2.0) ;INCLUDING Nyquist freq for even N
+    ENDIF ELSE BEGIN
+        nf = floor((len_fft_array-1)/2.0) ;EXCLUDING Nyquist freq for even N
+    ENDELSE
+
+    IF nf LE 0 THEN nf = 1 ;for when there is not enough data to perform an fft
+
+    ;Initialize structure to contain the fft results for this thread
+    result_th_fft = {power:fltarr(nf), $
+                     amplitude:fltarr(nf), $
+                     freq:fltarr(nf), $
+                     phase:fltarr(nf), $
+                     peak_power:[0.0, 0.0, 0.0, 0.0], $
+                     peak_amplitude:[0.0, 0.0, 0.0, 0.0], $
+                     peak_freq:[0.0, 0.0, 0.0, 0.0], $
+                     peak_phase:[0.0, 0.0, 0.0, 0.0], $
+                     peak_bin:[-1, -1, -1, -1], $
+
+                     ;error values                 
+                     err_power:fltarr(nf), $
+                     err_amplitude:fltarr(nf), $
+                     err_phase:fltarr(nf), $
+                     err_peak_power:[0.0, 0.0, 0.0, 0.0], $
+                     err_peak_amplitude:[0.0, 0.0, 0.0, 0.0], $
+                     err_peak_phase:[0.0, 0.0, 0.0, 0.0], $
+
+                     ;Assorted reference values and strings
+                     num_signif_peaks:0, $
+                     start_bin:-1, $
+                     end_bin:-1, $
+                     thread_length:-1, $
+                     fft_length:-1, $
+                     trend:fltarr(len_thread), $
+                     apod_window:fltarr(len_thread), $
+                     window_func:'not_applicable', $
+                     window_param:-1.0, $
+                     cpg:-1.0, $
+                     bin_flags:intarr(nf), $
+                     signif_vals:fltarr(nf), $
+                     signif_level:0.0, $
+                     signif_test:'not_applicable'}
+    
+    ;Recording basic information about the thread
+    result_th_fft.start_bin = t_start
+    result_th_fft.end_bin = t_end
+    result_th_fft.thread_length = len_thread
+    result_th_fft.fft_length = len_fft_array
+    result_th_fft.apod_window[0:-1] = 1.0
+    result_th_fft.bin_flags[0:-1] = -2
+    result_th_fft.signif_level = signif_levels
+
+    ;###############################################
+    ;SORTING THREADS AND SKIPPING THE BAD ONES
+    ;###############################################
+    ;skips enteries with less than 2 positive values
+    IF (n_elements(where(tpos gt 0.0))) GT 2. THEN BEGIN
+
+        ;skips enteries where half the data points are set to zero, i.e. no
+        ;value was obtained at fitting stage.
+        IF (n_elements(where(tpos EQ 0.0))) LT 0.5*(n_elements(where(tpos GE 0.))) THEN BEGIN
+
+            ;if value missing set to same as last pixel and set
+            ;NOTE: this should not be needed if 'patch_up.pro' is used prior to calling this procedure
+            zer = where(tpos EQ 0.0)
+            IF zer[0] NE -1 THEN BEGIN
+                FOR ii=0,n_elements(zer)-1 DO BEGIN
+                    tpos[zer[ii]] = tpos[zer[ii]-1]
+                    terr[zer[ii]] = 1.
+                ENDFOR
+            ENDIF
+
+            ;###############################################
+            ;FIT THE GOOD THREADS
+            ;###############################################
+            IF t_start ge 0 THEN BEGIN
+
+                tpos = dx*tpos[t_start:t_end]
+                terr = dx*terr[t_start:t_end]
+                                        
+                ; calculates linear trend or mean
+                IF keyword_set(ctrend) THEN BEGIN
+                    res = poly_fit(findgen(t_end-t_start+1), tpos, 1, yfit=trend) ;fit linear trend line
+                ENDIF ELSE BEGIN
+                    trend = fltarr(t_end-t_start+1) + mean(tpos)  ;calculates mean of data
+                ENDELSE
+                
+                result_th_fft.trend = trend
+
+                ;###############################################
+                ;Perform the FFT and calculate the power and phase
+                ;###############################################
+        
+                oscil = tpos-trend ;detrend (or just subtract the mean from) the time series
+   
+       		    s_len = n_elements(oscil) ;length of the source, unpadded time-series array
+       		    sd = s_len*dt ;total duration of the series (not currently used)
+       		    apodt = get_apod_window(s_len, cpg, parameter=window_param) 
+                ;note: cpg is Coherent Power Gain - correction factor needed for power after apodisation
+       		    
+                result_th_fft.apod_window = apodt
+                result_th_fft.window_func = window_func
+                result_th_fft.window_param = window_param
+
+                ;bootstrapping the input data. Returns 2D array with dimensions of [s_len, num_bootstrap]
+                boot_arr = bootstrap_1d_data(oscil, terr, num_resamples = num_bootstrap)
+
+                ;applying window and padding the array (if asked to)
+       		    IF NOT keyword_set(smpad) THEN BEGIN
+                    oscil = oscil*apodt               
+                    boot_arr = boot_arr*rebin(apodt, s_len, num_bootstrap)
+              	    n_len = s_len         		
+                ENDIF ELSE BEGIN
+                    oscil = smooth(boot_arr, [3, 1], /edge_truncate)  
+                    oscil = [oscil*apodt , fltarr(num_pad_fft)]             
+                    boot_arr = smooth(boot_arr, [3, 1], /edge_truncate)
+                  	boot_arr = [boot_arr*rebin(apodt, s_len, num_bootstrap), fltarr(num_pad_fft, num_bootstrap)]
+                  	n_len = s_len + num_pad_fft
+       		    ENDELSE
+
+                IF keyword_set(include_nyquist) THEN BEGIN
+                    end_fft_index = ceil((n_len-1)/2.0) ;last pos freq result in fft (INCLUDING Nyquist freq for even N)
+                ENDIF ELSE BEGIN
+                    end_fft_index = floor((n_len-1)/2.0) ;last pos freq result in fft (EXCLUDING Nyquist freq for even N)
+                ENDELSE
+                df = 1.0/(n_len*dt)
+                f = findgen(n_len)*df
+                f = f[1:end_fft_index]
+                
+                fft_of_boot = fft(boot_arr, -1, dimension=1)
+                boot_pow = (2.0*(abs(fft_of_boot))^2)[1:end_fft_index,*]
+                boot_phase = atan((fft_of_boot)[1:end_fft_index,*], /phase)
+                    
+                pow = mean(boot_pow, dimension=2)
+                phase = mean(boot_phase, dimension=2)
+                pow_err = stddev(boot_pow, dimension=2)
+                phase_err = stddev(boot_phase, dimension=2)
+
+                power_correction = n_len/(s_len*CPG) ;Assumes power is evenly distributed in apod window (not always true)
+
+                IF end_fft_index LT (nf - 1) THEN BEGIN
+                    result_th_fft.bin_flags[end_fft_index-1:-1] = -1 ;flag fft bins outside results with a value of -1
+                ENDIF
+
+                ;###############################################
+                ;Calculates significance level of the FFT signal
+                ; (see e.g., Torrence & Compo 1998 and Vaughan 2005)
+                ;###############################################
+        	    ;Doesn't let straight lines through (i.e. fft results with very low varience)
+       		    IF ((moment(pow))[1]) GT 1e-9 THEN BEGIN
+
+                    ;Computing various results and saving to the output structure
+                    result_th_fft.power = pow*(power_correction^2)
+                    result_th_fft.amplitude = 2.0*sqrt(pow/2.0)*power_correction
+           			result_th_fft.freq = f
+                    result_th_fft.phase = phase
+                    result_th_fft.cpg = CPG
+
+                    result_th_fft.err_power = pow_err*(power_correction^2)
+                    result_th_fft.err_amplitude = 2.0*sqrt(pow/2.0)*power_correction
+                    result_th_fft.err_phase = phase_err
+
+                    ;Significant tests for power spectra
+                    ;Default is Torrence & Compo 1998
+                    ;Alternative is Vaughan 2005
+         			IF keyword_set(vaughan) THEN BEGIN
+                        result_th_fft.signif_test = 'Vaughan_2005'
+           			    ;Normalise power
+         				npw = s_len*pow/(moment(oscil))[1] 
+            			prob = 1.0 - chisqr_pdf(2.0*npw,2)
+            			nprob = MAKE_ARRAY(SIZE(prob, /DIM))
+            			log_pp = s_len * ALOG(DOUBLE(1.0 - prob))
+            			indx = WHERE(log_pp gt -30.0, count, COMPLEMENT=indx_c)
+            			  
+                        IF (count gt 0) THEN nprob[indx] = exp(log_pp[indx])
+            			IF (count lt s_len) THEN nprob[indx_c] = 0.0
+                        
+                        result_th_fft.signif_vals = nprob
+                        loc_signif_pow = where(nprob gt signif_levels, /NULL)
+         			ENDIF ELSE BEGIN
+                        result_th_fft.signif_test = 'Torrence_&_Compo_1998'
+            			;sig_vals = SIGNIF_CONF(oscil, signif_levels)
+                        ;sig_vals = SIGNIF_NOISE_SPEC(oscil, signif_levels, n_elements(f))
+                        sig_vals = SIGNIF_NOISE_SPEC_BOOTSTRAP(boot_arr, signif_levels, n_elements(f))
+                        ;boot_sig_vals = SIGNIF_NOISE_SPEC(mean(boot_arr, dimension=2), signif_levels, n_elements(f))
+                        ;print, 'thread #', h, ' sig val diff.'
+                        ;print, boot_sig_vals - sig_vals
+                        result_th_fft.signif_vals = sig_vals*(power_correction^2)
+            			loc_signif_pow = where(pow gt sig_vals, /NULL)
+        			ENDELSE
+
+                    result_th_fft.bin_flags[0:end_fft_index-1] = 0 ;fill all valid fft bin flags with a value of 0
+                    result_th_fft.bin_flags[loc_signif_pow] = 1 ;flag significant results with a quality value of 1
+
+                    ;Finding peaks in the significant power results (NEW METHOD AS OF JUNE 2016)
+                    temp_pow = result_th_fft.power[0:-1] ;temporary array for finding peaks
+                    temp_pow[where(result_th_fft.bin_flags LT 1, /NULL)] = 0 ;clear out values that are not significant
+                    compare_right = temp_pow - SHIFT(temp_pow, -1)
+                    compare_right[-1] = 0 ;ignores the value to the "right" of the last value in the array
+                    compare_left = temp_pow - SHIFT(temp_pow, 1)
+                    compare_left[0] = 0 ;ignores the value to the "left" of the last value in the array
+                    loc_signif_peaks = where(temp_pow GT 0 and (compare_right GE 0 and compare_left GE 0), /NULL)
+
+                    result_th_fft.bin_flags[loc_signif_peaks] = 2 ;flag local peaks in the significant results with a value of 2
+
+                    ;Saving the wave parameters of the largest significant peaks
+                    ;note: will only save the FOUR largest peaks, even if there are more
+                    result_th_fft.num_signif_peaks = n_elements(loc_signif_peaks)
+                    IF result_th_fft.num_signif_peaks GT 0.0 THEN BEGIN
+                        ;sort based on the power at each peak
+         			    pow_at_signif_peaks = result_th_fft.power[loc_signif_peaks]
+                        sorted_indices = REVERSE(SORT(pow_at_signif_peaks)) ;sort values high to low
+                        jj = 0                        
+                        WHILE jj LT 4 DO BEGIN
+                            bin_of_peak = loc_signif_peaks[sorted_indices[jj]]
+                            result_th_fft.peak_power[jj] = result_th_fft.power[bin_of_peak]
+                            result_th_fft.peak_amplitude[jj] = result_th_fft.amplitude[bin_of_peak]
+                            result_th_fft.peak_freq[jj] = f[bin_of_peak]
+                            result_th_fft.peak_phase[jj] = phase[bin_of_peak]
+                            result_th_fft.peak_bin[jj] = bin_of_peak
+                            jj = jj + 1 ;count number of wave results saved so far
+                            IF jj EQ result_th_fft.num_signif_peaks THEN jj = 9001
+                        ENDWHILE
+                    ENDIF
+        			
+         		    ;Calculate for maximum values
+;                    IF n_elements(loc_signif_peaks) GT 0.0 THEN BEGIN
+;         			    max_pow = max(result_th_fft.power[loc_signif_peaks])
+;                        loc_max = where(result_th_fft.power EQ max_pow, /NULL)
+;                        result_th_fft.peak_power = max_pow
+;                        result_th_fft.peak_amplitude = result_th_fft.amplitude[loc_max]
+;                        result_th_fft.peak_freq = f[loc_max]
+;                        result_th_fft.peak_phase = phase[loc_max]
+;                        result_th_fft.peak_bin = loc_max
+;                    ENDIF
+
+;                        ;finding the secondary significant peak (if present)
+;                        loc_other_signif_peaks = where(res.bin_flags EQ 2 AND indgen(s_len) NE index_peak_pow, /NULL)
+;                        IF n_elements(loc_other_signif_peaks) GT 0 THEN BEGIN
+;                            second_peak_pow = max(res.power[loc_other_signif_peaks])
+;                            index_second_peak = where(res.power EQ second_peak_pow, /NULL)
+;                            second_peak_amplitude = res.amplitude[index_second_peak]
+;                            second_peak_freq = res.freq[index_second_peak]
+;                            second_peak_phase = res.phase[index_second_peak]
+;                        ENDIF
+                    
+         			;For debugging
+         			IF keyword_set(doplot) and n_elements(loc_signif_peaks) GT 0 THEN BEGIN
+                        CONSEC, loc_signif_pow, lo, hi, num
+                        res = result_th_fft
+              		    window,1
+               			!p.multi=[0,3,1]
+               			plot, findgen(s_len)*dt, (tpos-trend)*apodt, charsize=2.
+               			oplot, findgen(s_len)*dt, (tpos-trend), linestyle=2
+               
+                        index = loc_signif_peaks[0]
+               			fun = TEST_FFT_WAVE_FUNCTION(res.amplitude[index], res.freq[index], res.phase[index], s_len, dt=dt)
+               			oplot, findgen(s_len)*dt, fun, linestyle=3, thick=2
+	
+               			IF num GT 1 THEN BEGIN
+                            index = loc_signif_peaks[1]
+                 		    fun2 = TEST_FFT_WAVE_FUNCTION(res.amplitude[index2], res.freq[index2], res.phase[index2], s_len, dt=dt)
+                  			oplot, findgen(s_len)*dt, fun2, linestyle=4, thick=2
+               			ENDIF
+
+               			IF num GT 2 THEN BEGIN
+                            index = loc_signif_peaks[2]
+                		    fun3 = TEST_FFT_WAVE_FUNCTION(res.amplitude[index3], res.freq[index3], res.phase[index3], s_len, dt=dt)
+               			    oplot, findgen(s_len)*dt, fun3, linestyle=5, thick=2
+              			ENDIF
+
+              			plot, f, pow, charsize=2.
+               			pow2 = pow
+               			IF keyword_set(vaughn) THEN pow2[where(nprob lt 0.95)]=0. $
+               			    ELSE pow2[where(pow lt sig_lvl)]=0.
+               			plot, f, pow2, charsize=2.
+               			pause
+                        !p.multi=0
+
+                    ENDIF
+       		    ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
+
+    ;Add the results to the output list
+    fft_results.ADD, result_th_fft
+ENDFOR
+
+
+!p.multi = 0
+set_plot, 'x'
+END
+

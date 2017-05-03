@@ -1,0 +1,477 @@
+;+
+;NAME: GENERATE_KINK_WAVES
+;
+;PURPOSE:
+;   Create a sample time-distance diagram of a coronal loop that looks like data
+;   from imagers. No physics is included. Structures recreated using measured
+;   properties from observed coronal loops. Intended for testing accuracy of
+;   Gaussian fitting technique.
+;
+;INPUTS:
+;   maxint - maximum intensity for in DN for loop
+;   width - standard deviation from Gaussian fit to loop cross-section
+;   amp - amplitude of wave in pixels
+;   period - period of wave in seconds
+;   phase - phase of the wavefindge
+;   res - resolution in arcseconds
+;   cad - cadence in seconds
+;   expo - exposure in seconds
+;   stddev_noise - sigma value for noise (noise is randomly picked from normally distributed values)
+;   mean_noise - mean value of noise
+;   seed - sets a seed value normally distributed random numbers
+;   alignerr - set sigma of alignment error (alignment error is randomly picked from normally distributed values)
+;
+;OPTIONAL INPUTS:
+;   clean - set keyword to set noise to a low level
+;   plot - set keyword to plot the generated array to screen
+;   background - set keyword to allow prompt and setting of background function
+;
+;OUTPUTS:
+;   karr - provides 2d array of kink wave
+;   middle - returns central position of gaussian (20+middle)
+;
+;TO DO:
+;   - Add in variable peak intensity. Start with different maxint for each wave, later add
+;     variable intensity over time within each wave.
+;   - Add more realistic noise to the image (sample real images)
+;   - Add simulated camera shake? (would be different over time)
+;
+;;HISTORY: Name---------Date---------Description
+;         R Morton      2013    - Initial programming
+;         M Weberg  July, 2016 - Modification (of some sort)
+;-
+
+;#####################################################
+;Generate a synthetic wave with a gaussian profile whose centeral position varies
+;over time with a sinusoidal motion as well as a linear drift
+;#####################################################
+;"Complete" generation of a simulated wave
+FUNCTION gen_kink, amp, period, phase, nx, nt, sim_dx, sim_dt, peak_int, width, $
+                   slope, saus_amp, wid_amp, period_saus, saus
+    kink = fltarr(nx,nt)
+    x_vals = findgen(nx)*sim_dx ; distance in arcsec
+    t_vals = findgen(nt)*sim_dt ; time in seconds
+
+    edge_offset = amp+3*width
+    IF slope LT 0 THEN edge_offset = x_vals[-1] - edge_offset
+    IF slope EQ 0 THEN edge_offset = x_vals[-1]/2.0
+    center_line = slope*t_vals + edge_offset
+    wave_locs = amp*cos(2.0*!PI*(t_vals)/period+phase)
+
+    IF n_elements(saus) GT 0 THEN BEGIN
+        amp_arr = peak_int + saus_amp*cos(2.*!Pi*(t_vals)/period_saus)
+        wid_arr = width + wid_amp*cos(2.*!Pi*(t_vals)/period_saus+!pi)
+    ENDIF ELSE BEGIN
+        amp_arr = fltarr(nt) + peak_int
+        wid_arr = fltarr(nt) + width
+    ENDELSE
+    FOR i=0L, (nt-1) DO BEGIN
+        kink[*,i] = amp_arr[i]*EXP(-((x_vals-(wave_locs[i]+center_line[i]))/wid_arr[i])^2/2.0)
+    ENDFOR
+
+    RETURN, kink
+END
+
+;"Complete" generation of a simulated wave (THIS IS THE FUNCTION USED BELOW)
+FUNCTION fast_gen_kink, amp, period, phase, nx, nt, sim_dx, sim_dt, peak_int, width, slope, $
+                        start_x_loc=start_x_loc, end_x_loc=end_x_loc
+    kink = fltarr(nx,nt)
+    x_vals = findgen(nx)*sim_dx ; distance in [arcsec]
+    x_vals = rebin(x_vals, nx, nt) ; replicate over time
+    t_vals = findgen(nt)*sim_dt ; time in [seconds]
+
+    edge_offset = amp+3*width
+    IF slope LT 0 THEN edge_offset = x_vals[-1] - edge_offset
+    IF slope EQ 0 THEN edge_offset = x_vals[-1]/2.0
+    center_line = slope*t_vals + edge_offset
+    center_line = rebin(reform(center_line, 1, nt), nx, nt) ; replicate over space
+
+    wave_locs = amp*cos(2.0*!PI*(t_vals)/period+phase) ; location in [arcsec]
+    start_x_loc = wave_locs[0] ; Used for tracking wave locations
+    end_x_loc = wave_locs[-1]
+    wave_locs = rebin(reform(wave_locs, 1, nt), nx, nt) ; replicate over space
+
+    kink = peak_int*EXP(-((x_vals-(wave_locs+center_line))/width)^2/2.0) ;should be a 2D array
+
+    RETURN, kink
+END
+
+;#####################################################
+;############### START OF MAIN PROGRAM ###############
+;#####################################################
+PRO GENERATE_KINK_WAVES, num_waves=num_waves, max_int=max_int, min_int=min_int, gauss_width=gauss_width, $
+                         mean_amp=mean_amp, stddev_amp=stddev_amp, $
+                         mean_period=mean_period, stddev_period=stddev_period, $
+                         max_phase=max_phase, max_slope=max_slope, $
+                         res=res, cad=cad, expo=expo, output_nx=output_nx, output_nt=output_nt, $
+                         ratio_x=ratio_x, ratio_t=ratio_t, sim_dx=sim_dx, sim_dt=sim_dt, $
+                         box_buffer=box_buffer, max_tries=max_tries, pack_tight=pack_tight, $
+                         stddev_noise=stddev_noise, mean_noise=mean_noise, background=background, $
+                         clean=clean, blur=blur, widths_blur=widths_blur, $
+                         seed=seed, alignerr=alignerr, $
+                         quiet=quiet, doplot=doplot
+
+;Define Common blocks to store the results
+COMMON sim_dat, sim_td, sim_waves
+
+;#####################################################
+;Setting default values
+;#####################################################
+IF NOT KEYWORD_SET(num_waves) THEN num_waves = 100
+IF n_elements(max_int) EQ 0 THEN max_int = 700.0 ; Value for a loop in AIA 171A (800+300 of bck)
+IF n_elements(min_int) EQ 0 THEN min_int = 500.0 ; Value for a loop in AIA 171A (800+300 of bck)
+IF n_elements(gauss_width) EQ 0 THEN gauss_width = 0.6 ; [pixels] Value for a loop in AIA 171A (old version: 1.2 pixels)
+IF n_elements(box_buffer) EQ 0 THEN box_buffer = 0
+IF NOT KEYWORD_SET(max_tries) THEN max_tries = 2000
+
+;Wave parameters
+IF NOT KEYWORD_SET(mean_amp) THEN mean_amp = 0.9 ;[arcsec]
+IF NOT KEYWORD_SET(stddev_amp) THEN stddev_amp = 0.4
+IF NOT KEYWORD_SET(mean_period) THEN mean_period = 480 ;[seconds]
+IF NOT KEYWORD_SET(stddev_period) THEN stddev_period = 100
+IF n_elements(max_phase) EQ 0 THEN max_phase = 2*!PI
+IF n_elements(max_slope) EQ 0 THEN max_slope = 0.005
+
+;Spatial & temporal resolution, Simulation gridding, and so on...
+IF n_elements(res) EQ 0 THEN res = 0.6 ; [arcsec] AIA 171 plate scale
+IF n_elements(cad) EQ 0 THEN cad = 12.0 ; [sec] Typical AIA 171 cadence
+IF n_elements(expo) EQ 0 THEN expo = 2.7 ; [sec] Typical AIA 171 exposure time
+IF NOT KEYWORD_SET(output_nx) THEN output_nx = 500 ; [pixels]
+IF NOT KEYWORD_SET(output_nt) THEN output_nt = 600 ; [pixels]
+
+IF NOT KEYWORD_SET(ratio_x) THEN ratio_x = 3
+IF NOT KEYWORD_SET(ratio_t) THEN ratio_t = 3
+IF NOT KEYWORD_SET(sim_dx) THEN sim_dx = res/ratio_x ; defaults result in sim_dx = 0.2 [arcsec]
+IF NOT KEYWORD_SET(sim_dt) THEN sim_dt = expo/ratio_t ; defaults result in sim_dt = 0.9 [sec]
+
+;Noise and Background
+IF n_elements(stddev_noise) EQ 0 THEN stddev_noise=18.37 ; Results taken from fits to noise
+IF n_elements(mean_noise) EQ 0 THEN mean_noise=-1.59 ; around a loop - see details given in 'data/kink_sim/'
+IF n_elements(seed) EQ 0 THEN seed=1L
+IF n_elements(alignerr) EQ 0 THEN alignerr=0.05
+IF KEYWORD_SET(clean) THEN stddev_noise=1.0  ; Sets a 'clean' value, i.e., very low noise
+IF n_elements(widths_blur) EQ 0 THEN widths_blur = [3, 9, 15, 21]
+
+km_per_arcsec = 725.27
+
+rndarr = 0;alignerr*randomn(2.*seed,600)
+
+;#####################################################
+;Calculating simulation array sizes and printing info
+;#####################################################
+max_dist = output_nx*res
+end_time = output_nt*cad
+full_nx = FIX(round(max_dist/sim_dx))
+full_nt = FIX(round(end_time/sim_dt))
+
+all_times = findgen(full_nt)*sim_dt
+sample_times = indgen(output_nt)*cad
+sample_t_indices = FIX(sample_times/sim_dt)
+num_expo_steps = FIX(expo/sim_dt)
+res_ratio = FIX(res/sim_dx)
+
+IF NOT KEYWORD_SET(quiet) THEN BEGIN
+    print, string([13B, 10B])+'Wave parameters:'
+    print, '    num_waves = ',+strtrim(num_waves,2)
+    print, '    Mean Amplitude [arcsec] = '+strtrim(mean_amp,2)
+    print, '    Mean Period [s] = '+strtrim(mean_period,2)
+    print, 'Simulation:'
+    print, '    array size = ['+strtrim(full_nx,2)+', '+strtrim(full_nt,2)+']'
+    print, '    Resolution [arcsec] = '+strtrim(sim_dx,2)
+    print, '    Cadence [s] = '+strtrim(sim_dt,2)
+    print, 'Output:'
+    print, '    array size = ['+strtrim(output_nx,2)+', '+strtrim(output_nt,2)+']'
+    print, '    Resolution [arcsec] = '+strtrim(res,2)
+    print, '    Cadence [s] = '+strtrim(cad,2)
+    print, '    Exposure time [s] = '+strtrim(expo,2)
+    print, '    max_dist [arcsec] = '+strtrim(max_dist,2)
+    print, '    end_time [sec] = '+strtrim(end_time,2)
+ENDIF
+
+;#####################################################
+;Generate arrays of wave parameters
+;#####################################################
+sim_waves = {amp:fltarr(num_waves), period:fltarr(num_waves), phase:fltarr(num_waves), $
+             slope:fltarr(num_waves), peak_int:fltarr(num_waves), $
+             obs_cycles:fltarr(num_waves), box_coords:intarr(4, num_waves), $
+             start_dist:fltarr(num_waves), start_time:fltarr(num_waves), $
+             end_dist:fltarr(num_waves), end_time:fltarr(num_waves)}
+sim_waves.amp = abs(randomn(test_seed, num_waves)*stddev_amp + mean_amp)
+sim_waves.period = abs(randomn(test_seed, num_waves)*stddev_period + mean_period)
+
+sim_waves.phase = randomu(test_seed, num_waves)*max_phase ;random observed phases
+sim_waves.slope = randomu(test_seed, num_waves)*2*max_slope - max_slope ;random slopes between -max & max
+; sim_waves.obs_cycles = randomu(test_seed, num_waves) + 0.5 ;random observed number of cycles between 0.5 to 1.5
+sim_waves.obs_cycles = randomu(test_seed, num_waves)*2 ;random observed number of cycles between 0.0 to 2
+
+peak_int_diff = max_int - min_int
+sim_waves.peak_int = randomu(test_seed, num_waves)*peak_int_diff + min_int;random peak intensity with a range
+
+;#####################################################
+;Determining placement of each wave simulation box
+;#####################################################
+IF NOT KEYWORD_SET(quiet) THEN print, string([13B, 10B])+'Starting box placement ...'
+box_array = intarr(full_nx, full_nt)
+
+wave_box_coords = intarr(2, num_waves)
+
+box_widths = FIX(CEIL((2*sim_waves.amp + 3*gauss_width)/sim_dx)) ; width in high res pixels
+box_lengths = FIX(CEIL((sim_waves.period*sim_waves.obs_cycles)/sim_dt)) ; length in high res pixels
+
+extra_box_widths = FIX(CEIL(box_lengths*sim_dt*ABS(sim_waves.slope)/sim_dx))
+box_widths = box_widths + extra_box_widths
+
+loc_empty = where(box_array EQ 0)
+num_failed = 0
+IF NOT KEYWORD_SET(pack_tight) THEN BEGIN
+    ;note: sorting an array of random values will result in indices in random ORDER
+    rand_vals = randomu(test_seed, n_elements(loc_empty))
+    rand_order = sort(rand_vals)
+ENDIF
+
+FOR i=0L, (num_waves-1) DO BEGIN
+    try = 0
+    placed = 0
+
+    IF KEYWORD_SET(pack_tight) THEN BEGIN
+        ;Results in simulation boxes that are packed tightly together
+        rand_corners = fix(randomu(test_seed, max_tries)*n_elements(loc_empty))
+        uniq_test_corners = loc_empty[rand_corners[uniq(rand_corners, sort(rand_corners))]]
+    ENDIF ELSE BEGIN
+        ;Randomly distributed simulation boxes
+        uniq_test_corners = loc_empty[rand_order]
+        ;rand_vals = randomu(test_seed, n_elements(loc_empty))
+        ;uniq_test_corners = loc_empty[sort(rand_vals)]
+    ENDELSE
+
+    test_coords = array_indices(box_array, uniq_test_corners)
+    ;note, this array has shape of [(x_index, y_index), z_pairs]
+    WHILE placed EQ 0 AND try LT (n_elements(uniq_test_corners)-1) AND try LT max_tries DO BEGIN
+        x_start = test_coords[0,try] - box_buffer
+        x_end = x_start + box_widths[i] + 2*box_buffer
+        t_start = test_coords[1,try] - box_buffer
+        t_end = t_start + box_lengths[i] + 2*box_buffer
+        IF x_start LT 0 THEN x_start = 0
+        IF t_start LT 0 THEN t_start = 0
+        IF x_end LT (full_nx-1) AND t_end LT (full_nt-1) THEN BEGIN
+            sample_sum = total(box_array[x_start:x_end, t_start:t_end])
+        ENDIF ELSE BEGIN
+            sample_sum = 999 ;instant fail (test_box outside array)
+        ENDELSE
+
+        IF sample_sum EQ 0 THEN BEGIN ;box is EMPTY
+            box_array[x_start:x_end, t_start:t_end] = 1
+            wave_box_coords[*,i] = test_coords[*,try]
+            loc_empty = where(box_array EQ 0)
+            placed = 1
+            IF NOT KEYWORD_SET(pack_tight) THEN BEGIN
+                x_sub_arr = reform(test_coords[0,*])
+                t_sub_arr = reform(test_coords[1,*])
+                loc_out = where((x_sub_arr LT x_start OR x_sub_arr GT x_end) OR $
+                                (t_sub_arr LT t_start OR t_sub_arr GT t_end))
+                rand_order = rand_order[loc_out]
+            ENDIF
+        ENDIF ELSE BEGIN
+            try = try + 1
+        ENDELSE
+    ENDWHILE
+
+    IF placed EQ 0 THEN num_failed = num_failed + 1
+ENDFOR
+
+IF NOT KEYWORD_SET(quiet) THEN BEGIN
+    print, 'Finished placing boxes!'
+    print, 'Number of failed placements:', num_failed
+ENDIF
+
+;#####################################################
+;Simulating waves in each box placed
+;#####################################################
+IF NOT KEYWORD_SET(quiet) THEN print, string([13B, 10B])+'Simulating waves ...'
+
+hi_res = fltarr(full_nx, full_nt)
+FOR i=0L, (num_waves-1) DO BEGIN
+    x_coord = wave_box_coords[0,i]
+    t_coord = wave_box_coords[1,i]
+    sim_waves.box_coords[*,i] = [x_coord, t_coord, x_coord+box_widths[i], t_coord+box_lengths[i]]
+    hi_res[x_coord, t_coord] = fast_gen_kink(sim_waves.amp[i], sim_waves.period[i], sim_waves.phase[i], $
+                                             box_widths[i], box_lengths[i], sim_dx, sim_dt, $
+                                             sim_waves.peak_int[i], gauss_width, sim_waves.slope[i], $
+                                             start_x_loc=first_loc_in_box, end_x_loc=last_loc_in_box)
+    sim_waves.start_dist[i] = x_coord*sim_dx + first_loc_in_box ; [arcsec]
+    sim_waves.end_dist[i] = x_coord*sim_dx + last_loc_in_box ; [arcsec]
+    sim_waves.start_time[i] = t_coord*sim_dt ; [seconds]
+    sim_waves.end_time[i] = sim_waves.box_coords[3,i]*sim_dt ; [seconds]
+ENDFOR
+
+;Sorting simulated waves in time and space (for easier comparison to NUWT results)
+sort_waves = SORT(REFORM(sim_waves.box_coords[1,*])) ;sort by start time-step
+sim_waves.amp = sim_waves.amp[sort_waves]
+sim_waves.period = sim_waves.period[sort_waves]
+sim_waves.phase = sim_waves.phase[sort_waves]
+sim_waves.slope = sim_waves.slope[sort_waves]
+sim_waves.obs_cycles = sim_waves.obs_cycles[sort_waves]
+sim_waves.box_coords[0,*] = sim_waves.box_coords[0,sort_waves]
+sim_waves.box_coords[1,*] = sim_waves.box_coords[1,sort_waves]
+sim_waves.box_coords[2,*] = sim_waves.box_coords[2,sort_waves]
+sim_waves.box_coords[3,*] = sim_waves.box_coords[3,sort_waves]
+sim_waves.start_dist = sim_waves.start_dist[sort_waves]
+sim_waves.start_time = sim_waves.start_time[sort_waves]
+
+;#####################################################
+;Degrading data to simulate observations
+;#####################################################
+IF NOT KEYWORD_SET(quiet) THEN print, string([13B, 10B])+'Degrading data quality for output ...'
+
+;hi_res = congrid(temporary(hi_res), output_nx, full_nt, /interp)
+;hi_res = rebin(temporary(hi_res), output_nx, full_nt)
+temp_res = fltarr(output_nx, full_nt)
+sim_td = fltarr(output_nx, output_nt, 2)
+FOR i=0L, (output_nx-1) DO BEGIN ;rescale and average over time
+    start_i = i*res_ratio
+    end_i = start_i + (res_ratio - 1)
+    temp_res[i,*] = mean(hi_res[start_i:end_i,*], dimension=1)
+ENDFOR
+FOR j=0L, (output_nt-1) DO BEGIN ;sample and average time
+    t_start = sample_t_indices[j]
+    t_end = sample_t_indices[j]+num_expo_steps
+    sim_td[*,j, 0] = mean(temp_res[*,t_start:t_end], dimension=2)
+ENDFOR
+
+;rescaling box_coords (in pixels)
+sim_waves.box_coords[0,*] = FIX(sim_waves.box_coords[0,*]*(sim_dx/res))
+sim_waves.box_coords[1,*] = FIX(sim_waves.box_coords[1,*]*(sim_dt/cad))
+sim_waves.box_coords[2,*] = FIX(sim_waves.box_coords[2,*]*(sim_dx/res))
+sim_waves.box_coords[3,*] = FIX(sim_waves.box_coords[3,*]*(sim_dt/cad))
+
+;#####################################################
+;Adding noise and background values to the td image
+;#####################################################
+IF NOT KEYWORD_SET(quiet) THEN print, string([13B, 10B])+'Adding background & applying noise ...'
+sim_td[*,*,1] = sim_td[*,*,0]
+
+if keyword_set(background) then begin
+
+    print,'#################################'
+    print,'Configure the background details'
+    print,'%'
+
+    half_time_ind = FIX(output_nt/2.0)
+    endlp='y'
+    ;while loop used to repeat whole fitting procedure
+    while (endlp eq 'y') do begin
+
+        background = fltarr(output_nx, output_nt)
+
+        plod = 1d
+        READ, plod, PROMPT='Enter polynomial order (0-3): '
+
+        ;Enforce limits on order
+        IF plod LT 0 THEN plod = 0
+        IF plod GT 3 THEN plod = 3
+
+        bckg = fltarr(plod+1)
+
+        for i=0,plod do begin
+
+            num=1d
+            READ, num, PROMPT='Enter coefficient for x^'+STRTRIM(STRING(i),1)+': '
+            bckg[i] = num
+
+        endfor
+
+        x = findgen(output_nx)
+
+        if plod eq 0 then begin
+            for i=0,output_nt-1 do background[*,i] = background[*,i]+bckg[0]
+        endif
+        if plod eq 1 then begin
+            for i=0,output_nt-1 do background[*,i] = background[*,i]+bckg[1]*x+bckg[0]
+        endif
+        if plod eq 2 then begin
+            for i=0,output_nt-1 do background[*,i] = background[*,i]+bckg[2]*x^2+bckg[1]*x+bckg[0]
+        endif
+        if plod eq 3 then begin
+            for i=0,output_nt-1 do background[*,i] = background[*,i]+bckg[3]*x^3+bckg[2]*x^2+bckg[1]*x+bckg[0]
+        endif
+
+        window, 4
+        plot, sim_td[*,half_time_ind,1]
+        oplot, background[*,half_time_ind]
+
+        READ, endlp, PROMPT='Change the background? - y/n '
+
+     endwhile
+     sim_td[*,*,1] = temporary(sim_td[*,*,1]) > background
+endif
+
+IF KEYWORD_SET(blur) THEN BEGIN
+    FOREACH smwth, widths_blur DO BEGIN
+        sim_td[*,*,1] = smooth(sim_td[*,*,1], [smwth,1], /edge_mirror)
+    ENDFOREACH
+    scale_factor = (1.0*max_int)/max(sim_td[*,*,1])
+    sim_td[*,*,1] = sim_td[*,*,1]*scale_factor
+    window, 5
+    plot, sim_td[*,half_time_ind,0]
+    oplot, sim_td[*,half_time_ind,1]
+ENDIF
+
+;POISSON NOISE - calculated in DN. For Poisson distribution mean=variance=F/Gain
+;pnoise=poidev((kink2/gain))
+;error=sqrt(pnoise+addnoise)
+sim_td[*,*,1] = apply_poisson_noise(sim_td[*,*,1], fraction=0.05, seed=test_seed)
+
+;GAUSSIAN (WHITE) NOISE
+rndarr2 = stddev_noise*randomn(seed, output_nx, output_nt) + mean_noise
+sim_td[*,*,1] = sim_td[*,*,1] + smooth(rndarr2, 3, /edge_wrap)
+
+IF KEYWORD_SET(background) OR KEYWORD_SET(blur) THEN BEGIN
+    window, 6
+    plot, sim_td[*,half_time_ind,0]
+    oplot, sim_td[*,half_time_ind,1]
+ENDIF
+
+;#####################################################
+;Plotting simulated td image and other diagnostics
+;#####################################################
+if keyword_set(doplot) then begin
+    IF NOT KEYWORD_SET(quiet) THEN print, string([13B, 10B])+'Plotting results ...'
+    !p.multi = 0
+
+    set_plot, 'x'
+    window, 1
+    ;set_plot, 'PS'
+    ;DEVICE, FILENAME='simulated_waves.ps', /LANDSCAPE
+
+    ;fig_waves = window(name='waves_fig', dimensions=[1200, 645], /buffer)
+
+    tvim, reverse(rotate(sim_td[*,*,0], 3), 2), /noaxis, title='Clean data (waves only)'
+    ;loadct, 13, /silent
+    ;oplot, 19-middle, color=250
+    loadct, 0, /silent
+    ;axis, 0,yaxis=0,yrange=res*km_per_arcsec*[0,output_nx]/1000.0,yst=1,ytitle='Distance (Mm)'
+    ;axis, 0,xaxis=0,xrange=cad*[0,output_nt],xst=1,xtitle='Time (s)'
+    ;axis, 0, yaxis=0, yrange=[0,max_dist], yst=1, ytitle='Distance (Arcsec)'
+    ;axis, 0, xaxis=0, xrange=[0,end_time], xst=1, xtitle='Time (s)'
+    axis, 0, yaxis=0, yrange=[0,output_nx], yst=1, ytitle='Distance [Pixels]'
+    axis, 0, xaxis=0, xrange=[0,output_nt], xst=1, xtitle='Time [step]'
+    ;fig_waves.save, 'simulated_waves.pdf', page_size=[12.0, 6.45], /close
+
+    ;DEVICE, /CLOSE
+
+    window, 2
+    tvim, reverse(rotate(sim_td[*,*,1], 3), 2), /noaxis, title='Data with noise and background'
+    ;axis, 0,yaxis=0,yrange=res*km_per_arcsec*[0,output_nx]/1000.0,yst=1,ytitle='Distance (Mm)'
+    ;axis, 0,xaxis=0,xrange=cad*[0,output_nt],xst=1,xtitle='Time (s)'
+    ;axis, 0, yaxis=0, yrange=[0,max_dist], yst=1, ytitle='Distance (Arcsec)'
+    ;axis, 0, xaxis=0, xrange=[0,end_time], xst=1, xtitle='Time (s)'
+    axis, 0, yaxis=0, yrange=[0,output_nx], yst=1, ytitle='Distance [Pixels]'
+    axis, 0, xaxis=0, xrange=[0,output_nt], xst=1, xtitle='Time [step]'
+
+    set_plot, 'x'
+    window, 3
+    tvim, reverse(rotate(box_array, 3), 2)
+
+endif
+
+END

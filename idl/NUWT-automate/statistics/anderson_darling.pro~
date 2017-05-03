@@ -1,0 +1,60 @@
+;+
+;NAME: ANDERSON_DARLING
+;
+;PURPOSE: 
+;   Determine if a given set of data is normally distributed by application
+;   of the Anderson Darling test. This test is generally seen as more powerful
+;   than the 
+;
+;INPUTS:
+;   x_vals - sample data to be tested
+;
+;OPTIONAL INPUTS:
+;   NONE (at the moment)
+;
+;OUTPUTS:
+;   A_squared - the Anderson Darling test statistic. Should be compared to
+;               a table of critical values to determine quality of fit.
+; 
+;HISTORY: Name---------Date---------Description
+;         M Weberg  July, 2016 - Initial coding
+;
+;TO DO:
+;   - Include an estimation for the critical values so the probabilities can
+;     also be returned by the function
+;-
+
+FUNCTION ANDERSON_DARLING, x_vals, adjusted=adjusted, crit_val=crit_val
+
+N = n_elements(x_vals)
+
+mu = total(x_vals)/N
+sigma = sqrt((1.0/(N-1))*total((x_vals-mu)^2))
+
+sort_ind = SORT(x_vals)
+Y = (x_vals[sort_ind]-mu)/sigma
+
+norm_CDF_vals = standard_normal_cdf(Y)
+
+i_arr = indgen(N)+1
+
+A_sqrd = -N -1.0/N*total((2*i_arr - 1)*(ALOG(norm_CDF_vals) + ALOG(1 - REVERSE(norm_CDF_vals))))
+;Crit val table (from Stephens, 1974, JASA)
+; 5% Signif level
+; n=10,   20,    50,    100,  infinity
+; 0.683, 0.704, 0.735, 0.754, 0.787
+crit_val = interpol([0.683, 0.704, 0.735, 0.754], [10, 20, 50, 100], N) 
+
+IF KEYWORD_SET(adjusted) THEN BEGIN
+    ;from D'Agostino, 1986, (book)
+    ;Crit vals table (N => 8)
+    ; 10%,   5%,   2.5%,   1%,   0.5%
+    ;0.631, 0.752, 0.873, 1.035, 1.159
+    A_sqrd = A_sqrd*(1 + 0.75/N + 2.25/N^2)
+    crit_val = 0.752 ;5% sig level
+ENDIF
+
+RETURN, A_sqrd
+END
+
+

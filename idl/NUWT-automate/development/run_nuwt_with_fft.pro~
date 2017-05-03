@@ -1,0 +1,127 @@
+;+
+;NAME: RUN_NUWT_WITH_FFT
+;
+;PURPOSE: 
+;   One of the top level Northumbria University Wave Tracking (NUWT) run scripts.
+;   Takes a time distance diagram, picks out peaks in the intensity (also called 
+;   'threads'), then feeds them into an FFT to calculate the power and frequencies
+;   of oscillation (if any). See the user guide (once available) and the code of 
+;   each sub-program for more imformation.
+;
+;
+;INPUTS:
+;   data - an array of time-distance (t-d) diagrams of the form (x,t,z)
+;
+;OPTIONAL INPUTS:
+;   dx - spatial sampling of data. default is 1
+;   dt - temporal sampling of the data. default is 1
+;   doplot - plots of threads and power spectra on screen for debug 
+;   gauss - uses a gaussian fit to locate centre of thread, provides sub-pixel measurements
+;   errors - estimated errors on intensity values, supplied to gaussian fitting routine.
+;            if not supplied a default value of 1% of intensity values is used
+;
+;OUTPUTS:
+;   common blocks contain the results and are used for all internal passing of
+;   data between subprograms.
+;
+;
+;EXTERNAL CALLS - locate_things.pro, follow_thread.pro, patch_up.pro, wave_from_fft.pro
+;
+;HISTORY: Name---------Date---------Description
+;         M Weberg  JUNE, 2016  Initial coding.
+;
+;TO DO / RESTRICTIONS:
+;   - Add funcationality for passing a structure with the desired keyword
+;     arguments (kwargs) for each subprogram.
+;   - create subprograms for exporting the final results to human-readable
+;     files.
+;   - Add options for tracking the metadata (data source, date & time of
+;     observation, ect...) and creating better labeled output.
+;-
+
+
+PRO RUN_NUWT_WITH_FFT, data, errors=errors, dx=dx, dt=dt, gauss=gauss, full_gauss=full_gauss, bootstrap=bootstrap, doplot=doplot
+
+;###############################################
+;INITIAL HOUSE KEEPING
+;###############################################
+
+COMMON located_dat, located, nx, nt
+COMMON threads_dat, threads
+COMMON fft_results_dat, fft_results
+
+sz = size(data)
+IF sz(0) EQ 3 THEN nslits=sz(3) ELSE nslits=1
+
+IF NOT keyword_set(dx) THEN dx=1.
+IF NOT keyword_set(dt) THEN dt=1.
+IF NOT keyword_set(signif_levels) THEN signif_levels=0.95
+
+IF NOT keyword_set(gauss) THEN print, 'Finding whole pixel values' ELSE print, 'Gaussian location enabled'
+IF NOT keyword_set(full_gauss) THEN full_gauss = 0
+
+numg = 1d
+READ, numg, PROMPT='Enter gradient: '
+
+numt = 1d
+READ, numt, PROMPT='Enter thread length: '
+
+
+;###############################################
+;BEGIN WORKING ON EACH TIME-DISTANCE DIAGRAM
+;###############################################
+
+FOR k=0, nslits-1 DO BEGIN
+
+    h=0 ; Counting device
+    
+    print,'&&&&&&&','Slit number:', k
+      
+    ;Fitting of intensity maxima
+    IF not keyword_set(gauss) THEN BEGIN
+        LOCATE_THINGS_MIN_TESTING, data[*,*,k], grad=numg
+    ENDIF ELSE BEGIN
+
+        IF n_elements(errors) gt 0. THEN errorsi=errors[*,*,k]
+ 
+        ;If errors are not supplied then error level set to default 10% of intensity
+        IF n_elements(errors) eq 0 THEN BEGIN
+            errorsi = fltarr(sz(1),sz(2))
+            errorsi = abs(data[*,*,k])*0.1             
+        ENDIF
+  
+        LOCATE_THINGS_TESTING, data[*,*,k], errors=errorsi, grad=numg, meas_size=meas_size, full_gauss=full_gauss
+        ;LOCATE_THINGS, data=data[*,*,k], errors=errorsi, grad=numg
+                                
+    ENDELSE
+
+    ;Plot found data points
+    IF keyword_set(doplot) THEN BEGIN
+        window,0
+        !p.multi=[0,2,1]
+        tvim, data[*,*,k]
+        tvim, located.peaks[*,*,1]
+    ENDIF
+    
+    ;FOLLOW_THREAD_TESTING, min_tlen=numt, area=area
+    FOLLOW_THREAD_DEBUG, min_tlen=numt, area=area
+
+
+    sz = size(threads)
+    n_threads = sz(1)
+    print,'Number of threads found', n_threads
+    
+    PATCH_UP_TEST, /simp_fill
+
+    IF keyword_set(bootstrap) THEN BEGIN
+        WAVE_FROM_FFT_BOOTSTRAP, doplot=doplot
+    ENDIF ELSE BEGIN
+        WAVE_FROM_FFT, doplot=doplot
+    ENDELSE
+
+ENDFOR
+
+!p.multi=0
+set_plot,'x'
+END
+

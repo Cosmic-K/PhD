@@ -1,0 +1,2 @@
+restore, '/home/eeuser/mjweberg/NUWT-automate/data.idl'
+print, 'Restored the example data'

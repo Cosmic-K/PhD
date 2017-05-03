@@ -1,0 +1,88 @@
+;+
+;NAME: PLOT_NUWT_LOCATED_Peaks
+;
+;PURPOSE: 
+;   Plots the intensity peaks found by 'locate_things.pro' as well as histograms
+;   of the gradients on both the left and right sides (as an aid for selecting
+;   a good gradient. Can plot either to the screen or a PDF (for later refference)
+;
+;INPUTS:
+;   None directly. Loads in the common block containing the results from
+;   'locate_things.pro' (extended format with gradient information)
+;
+;OPTIONAL INPUTS:
+;   dx - spatial sampling of data (in km). default is 1
+;   dt - temporal sampling of the data (in s). default is 1
+;   units_dist - string indicating what units to use for distance in the plot
+;                labels & wave parameters. Defaults to units of 'pixels'
+;   units_time - string indicating what units to use for time in the plot
+;                labels & wave parameters. Defaults to units of 'steps'
+;
+;OUTPUTS: 
+;   PDF_file - multi-page PDF containing the found peaks and thier gradients
+;
+;HISTORY: Name---------Date---------Description
+;         M Weberg  MAY, 2016  Initial coding. Was part of a modified version
+;                              of 'locate_things.pro'
+;         M Weberg  JULY, 2016  Moved to seperate program and extended options
+;
+;TO-DO / LIMITATIONS:
+;   - Add in unit conversions / calculations
+;   - Add inputs for metadata indicating the data and source of observations.
+;-
+
+PRO PLOT_NUWT_LOCATED_PEAKS, data, dx=dx, dt=dt, units_dist=units_dist, units_time=units_time, $
+                             grad=grad, plot_screen=plot_screen, plot_invalid=plot_invalid
+
+COMMON located_dat, located, nx, nt
+
+;Setting default values
+IF NOT keyword_set(units_dist) THEN units_dist = 'km'
+IF NOT keyword_set(units_time) THEN units_time = 's'
+IF NOT keyword_set(dx) THEN units_dist = 'pixels'
+IF NOT keyword_set(dt) THEN units_time = 'steps'
+
+IF NOT keyword_set(dx) THEN dx = 1.0
+IF NOT keyword_set(dt) THEN dt = 1.0
+   
+IF n_elements(grad) EQ 0 THEN BEGIN
+    ;tries to look at the results and infer what the cutoff gradient was
+    valid_pk_locs = where(located.peaks[*,*,1] GE 0, /NULL)
+    abs_min_valid_grad_left = min(abs(located.grad_left[valid_pk_locs]))
+    abs_min_valid_grad_right = min(abs(located.grad_right[valid_pk_locs]))
+    grad = mean([abs_min_valid_grad_left, abs_min_valid_grad_right])
+    IF grad GE 0 THEN print, 'estimated gradient cutoff = ', grad
+ENDIF
+    
+;plotting results to the screen
+IF keyword_set(plot_screen) THEN BEGIN
+    print, 'Plotting located peaks to the screen ...'
+    gl_max = mean(located.grad_left) + 4*stddev(located.grad_left)
+    gr_min = mean(located.grad_right) - 4*stddev(located.grad_right)
+    gl_hist = histogram(located.grad_left, nbins=100, min=0.0, max=gl_max, LOCATIONS=gl_bins)
+    gr_hist = histogram(located.grad_right, nbins=100, min=gr_min, max=0.0, LOCATIONS=gr_bins)
+    max_gl_hist = max(gl_hist)
+    max_gr_hist = max(gr_hist)
+    invalid_pk_locs = where(located.peaks[*,*,1] LE 0 and located.allpeaks[*,*] GT 0, /NULL)
+    invalid_pk_indices = array_indices(located.allpeaks, invalid_pk_locs)
+    window, 30, XSIZE=600, YSIZE=600, XPOS=0, YPOS=50
+    IF nx GT nt*1.25 THEN BEGIN
+        !p.multi=[0,1,2,0,0] 
+    ENDIF ELSE BEGIN
+        !p.multi=[0,2,1,0,0]
+    ENDELSE
+    tvim, data[*,*], title="Image Data", ytitle='Time-slice', xtitle='Pixel'
+    tvim, located.peaks[*,*,1], title="Peak Locations!C(boxes indicate peaks cut by gradient)", ytitle='Time-slice', xtitle='Pixel'
+    if keyword_set(plot_invalid) THEN BEGIN    
+        oplot, invalid_pk_indices[0,*], invalid_pk_indices[1,*], psym=6, symsize=0.35, color=100
+    ENDIF
+    window, 31, XSIZE=600, YSIZE=600, XPOS=700, YPOS=50
+    !p.multi=[0,1,2,0,0]
+    plot, gl_bins, gl_hist, psym=10, title="Left-side Gradients", ytitle='num peaks', xtitle='gradient'
+    oplot, [grad, grad], [0.0, max_gl_hist], color=100
+    plot, gr_bins, gr_hist, psym=10, title="Right-side Gradients", ytitle='num peaks', xtitle='gradient'
+    oplot, [-grad, -grad], [0.0, max_gr_hist], color=100
+;print, 'Finished ploting FFT results to a multi-page PDF!'
+ENDIF
+END
+

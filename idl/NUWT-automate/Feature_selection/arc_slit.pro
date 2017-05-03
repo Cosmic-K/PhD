@@ -1,0 +1,177 @@
+;+
+;NAME: ARC_SLIT
+;
+;PURPOSE:
+;   Extracts a time-distance slice along a circular arc in a series of images. 
+;   Can operate in an interactive mode. Basic code framework was adapted from 
+;   diag_slit.pro
+;
+;INPUTS: 
+;   in_data - 2D or 3D array containing image data
+;
+;OPTIONAL INPUTS:
+;   center - [x,y] center pixel coordinates of the circle that defines the arc
+;   radius - radius (in pixels) of the circle
+;   start_ang - start angle in degrees from the positive x-direction
+;   subtend - total angle (in degrees) for the slection arc to subtend. If not
+;             defined, the program will return all points on the circle that
+;             fall within the given image. Note: sign is ignored - i.e. the 
+;             actual value used is abs(subtend)
+;   ang_res - angular resolution (in degrees) for sampling the image.
+;             WARNING! if not careful, it is easy to under- or over-sample the
+;             image. The default method is scaled based on the circumference of
+;             the given circle and should sample each point only once.
+;   /clockwise - if set, will sample points in a clockwise direction. 
+;   fn - frame number to plot 
+;   xsize, ysize - size of graphics window (command for widgets)
+;   win_id - set to value of open graphics window you want to use. If not set,
+;            opens next free window.
+;   /noopen - if set, suppresses the opening of plot windows
+;
+;OUTPUTS: 
+;   out_data - output array where data along diagonal line is stored
+;   outvec - array of [h, k, r] parameters used for the circle
+;   slit_coords - array of shape [T, 2] containing the x and y coordinates of
+;                 virtual slit used for interpolating and extracting the data
+;
+;HISTORY: Name---------Date---------Description
+;         M Weberg  8 JUNE, 2016  Initial coding
+;         M Weberg  9 JUNE, 2016  Large upgrade, added options for:
+;                                  - variable angular resolution
+;                                  - start and subtending angle
+;                                  - direction of data sampling
+;
+;TO DO:
+;   - Add option for averaging over multiple slices to improve signal/noise
+;-
+
+PRO ARC_SLIT, in_data, out_data, center=center, radius=radius, start_ang=start_ang, $
+              subtend=subtend, ang_res=ang_res, clockwise=clockwise, slit_coords=slit_coords, $
+              outvec=outvec, fn=fn, xsize=xsize, ysize=ysize, win_id=win_id, noopen=noopen
+
+;Check dimensions of input data
+sz = size(in_data)
+IF sz[0] EQ 3 THEN BEGIN
+    nx_data = sz[1]
+    ny_data = sz[2]
+    nt_data = sz[3]
+ENDIF ELSE BEGIN
+    IF sz[0] EQ 2 THEN BEGIN
+        print, 'WARNING: input data is only 2D! Output array will be 1D.'
+        nx_data = sz[1]
+        ny_data = sz[2]
+        nt_data = 1
+        fn = 0
+    ENDIF ELSE BEGIN
+        MESSAGE, 'ERROR: please input a valid 2D or 3D array'
+    ENDELSE
+ENDELSE
+
+IF NOT keyword_set(noopen) THEN BEGIN
+    IF n_elements(fn) eq 0 THEN fn=0
+    IF fn GT nt_data-1 THEN fn = nt_data-1
+    ;Set plotting elements
+    ;writing to buffer pixmap reduces on-screen jitter!
+    IF n_elements(win_id) EQ 0 THEN BEGIN
+        determine_window_size, xsize=xsize, ysize=ysize, openwin=openwin, /new_win 
+        window, openwin[0], xs=xsize,ys=ysize
+        window_var = openwin[0]
+    ENDIF ELSE BEGIN 
+        wset, win_id
+        window_var = win_id
+    ENDELSE
+    window, xs=xsize, ys=ysize, /pixmap, /free
+    pixID = !d.window
+    tvim, in_data[*,*,fn]
+    wset, window_var
+    device, copy=[0,0,!d.x_size,!d.y_size,0,0,pixid]
+ENDIF
+
+;Ask for center of circle and radius if not set
+IF n_elements(center) EQ 0 THEN BEGIN
+    READ, cx, PROMPT='Please enter x-coord of the circle center: '
+    READ, cy, PROMPT='Please enter y-coord of the circle center: '
+    center = [cx,cy]
+ENDIF
+
+IF n_elements(radius) EQ 0 THEN BEGIN
+    IF NOT keyword_set(noopen) THEN BEGIN
+        PRINT,'Select point on circle with cursor'
+        CURSOR, x, y, /Data,/Down
+        radius = sqrt((x-center[0])^2 + (y-center[1])^2)
+        print, 'x='+strtrim(string(x)), '  y='+strtrim(string(y)), '  radius='+strtrim(string(radius))
+    ENDIF ELSE BEGIN
+        READ, radius, PROMPT='Please enter radius of the circle: '
+    ENDELSE
+ENDIF
+
+;Validating input values and resetting if needed (prevents unexpected behavior)
+IF radius LT 0.0 THEN radius = -1*radius
+
+;Determine angular resolution and start angle
+IF n_elements(ang_res) EQ 0 THEN BEGIN
+    circ = 2.0*!CONST.PI*radius ;circumference in units of pixels
+    ang_res = 360.0/circ
+ENDIF
+
+IF n_elements(start_ang) EQ 0 THEN start_ang = 180.0
+
+;Generate the array of angles (double precision in units of degrees)
+;note: these angles are always positive and are measured from the pos x-direction
+IF keyword_set(clockwise) THEN BEGIN
+    ;note: the extra +1 ensures the angles START at the correct ang after reversal
+    theta = reverse((dindgen(360d/ang_res) + 1)*ang_res + start_ang)
+    rotation_dir= -1.0
+ENDIF ELSE BEGIN
+    theta = dindgen(360d/ang_res)*ang_res + start_ang
+    rotation_dir = 1.0
+ENDELSE
+
+;Trim the angles down to the desired arc
+IF n_elements(subtend) GT 0 THEN BEGIN
+    subtend = double(abs(subtend))
+    ;Ignore invalid subtending angles
+    IF subtend GT 0.0 AND subtend LT 360.0 THEN BEGIN
+        begin_angle = theta[0]
+        end_angle = begin_angle + rotation_dir*subtend
+        IF keyword_set(clockwise) THEN BEGIN
+            loc_arc = where(theta LE begin_angle and theta GE end_angle)
+        ENDIF ELSE BEGIN
+            loc_arc = where(theta GE begin_angle and theta LE end_angle)
+        ENDELSE
+        theta = theta[loc_arc]
+    ENDIF
+ENDIF
+
+;Generate the x and y coordinates on the circle
+x_vals = center[0] + radius*cos(theta*!CONST.DtoR)
+y_vals = center[1] + radius*sin(theta*!CONST.DtoR)
+
+;Filters slit coords for only the region inside the image
+loc_valid = where(x_vals GE 0 and x_vals LE nx_data-1 and y_vals GE 0 and y_vals LE ny_data-1, /NULL)
+x_vals = x_vals[loc_valid]
+y_vals = y_vals[loc_valid]
+length = n_elements(x_vals)
+
+;Plot the selected slit on the image
+IF NOT keyword_set(noopen) THEN plots, x_vals, y_vals
+
+;Slicing the input data cube and then averaging over the width (if needed)
+mindat = min(in_data)
+IF mindat GT 0 THEN mindat=-1. ELSE mindat=mindat-0.1*sqrt((moment(in_data))[1])
+out_data = fltarr(length, nt_data)
+
+FOR i=0L, nt_data-1 DO BEGIN
+    out_data[*,i] = interpolate(reform(in_data[*,*,i]), x_vals, y_vals, cubic=-0.5, missing=mindat)
+ENDFOR
+
+;Outputting slit coordinates (might be used by other scripts?)
+outvec = [center[0], center[1], radius]
+
+arc_coords = fltarr(length, 2)
+arc_coords[*,0] = x_vals
+arc_coords[*,1] = y_vals
+slit_coords = arc_coords
+END
+
+
