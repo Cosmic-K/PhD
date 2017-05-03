@@ -1,0 +1,10 @@
+props={dimension:[800,800],marg:[0.2,0.01,0.01,0.01],FONT_NAME:'Helvetica'}
+Mm = (0.725/16.981891892)
+im=image(smooth(core[140:310,400:510,0],4),_EXTRA=props,layout=[4,1,1],title='Time: 09:06:15')
+axis('x',location='bottom',coord_transform=[0,mm],title='Distance (Mm)',tickFONT_NAME='Helvetica')
+axis('y',location='left',coord_transform=[0,mm],title='Distance (Mm)',tickFONT_NAME='Helvetica')
+axis('x',location='top',showtext=0,ticklayout=1,coord_transform=[0,mm])
+axis('y',location='right',showtext=0,ticklayout=1,coord_transform=[0,mm])
+im1=image(smooth(core[140:310,400:510,50],4),_EXTRA=props,layout=[4,1,2],/curr,title='Time: 09:07:22')
+im2=image(smooth(core[140:310,400:510,90],4),_EXTRA=props,layout=[4,1,3],/curr,title='Time: 09:08:16')
+im3=image(smooth(core[140:310,400:510,150],4),_EXTRA=props,layout=[4,1,4],/curr,title='Time: 09:09:36')
