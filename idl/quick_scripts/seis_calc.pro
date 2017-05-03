@@ -5,7 +5,7 @@ close,2
 close,3
 
 
-FOR i=21,21 DO BEGIN
+FOR i=1,1 DO BEGIN
 
 f='amp'+strtrim(i,1)+'.txt'
 amp_data=read_table(f)
@@ -34,26 +34,28 @@ m3=moment(amp_diff)
 ;IF rms(abs(amp_diff/amp_er)) lt 2 THEN BEGIN
 IF m2[1] lt 11.0 THEN BEGIN
 
-R=reform(amps_norm)
-B=reform((1/amps_norm)^2)
-rho=reform((1/amps_norm)^4)
+;R=reform(amps_norm)
+;B=reform((1/amps_norm)^2)
+rho=reform((1./amps_norm)^4.)
 
 
-R_er = reform(R*sqrt((amp_er/amps)^2+(amp_er(0)/amps(0))^2))
-B_er = reform(B*sqrt(((2*amp_er/amps)^2+(2*amp_er(0)/amps(0))^2)))
-rho_er = reform(rho*sqrt((4*amp_er/amps)^2+(4*amp_er(0)/amps(0))^2))
+;R_er = reform(R*sqrt((amp_er/amps)^2+(amp_er(0)/amps(0))^2))
+;B_er = reform(B*sqrt(((2*amp_er/amps)^2+(2*amp_er(0)/amps(0))^2)))
+;rho_er = reform(rho*sqrt((4.*amp_er/amps)^2.+(4.*amp_er(0)/amps(0))^2.))
+a = ((-4*(amps(0)^4/amps^5))^2)*amp_er^2
+b = ((4*(amps(0)^3/amps^4))^2)*amp_er(0)^2
+rho_er = reform(sqrt(a+b))
 
 
+;openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/r_n/seis_r_'+strtrim(i,1)+'.txt',/append
+;PRINTF,1,transpose([[R],[R_er]]),FORMAT='(2F)'
+;close,1
 
-openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/r_n/seis_r_'+strtrim(i,1)+'.txt',/append
-PRINTF,1,transpose([[R],[R_er]]),FORMAT='(2F)'
-close,1
+;openw,2,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/b_n/seis_b_'+strtrim(i,1)+'.txt',/append
+;PRINTF,2,transpose([[B],[B_er]]),FORMAT='(2F)'
+;close,2
 
-openw,2,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/b_n/seis_b_'+strtrim(i,1)+'.txt',/append
-PRINTF,2,transpose([[B],[B_er]]),FORMAT='(2F)'
-close,2
-
-openw,3,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/Images/seis/seis_nu/rho_n/seis_rho_'+strtrim(i,1)+'.txt',/append
+openw,3,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/test_rho_'+strtrim(i,1)+'.txt',/append
 PRINTF,3,transpose([[rho],[rho_er]]),FORMAT='(2F)'
 close,3
 

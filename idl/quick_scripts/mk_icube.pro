@@ -7,11 +7,12 @@ nlines= 15
 nw=nt/4.
 
 stokesI = intarr( nx, ny, nw )
-
-FOR x=long(0),nw-1 DO BEGIN
-
-stokesI[*,*,x] = lp_get(filename, (x*4.)+0.)
-
+h=0
+FOR x=long(0),nt-1,60 DO BEGIN
+FOR j=x,x+14 do begin
+stokesI[*,*,h] = lp_get(filexx  name, j)
+h+=1
+ENDFOR
 ENDFOR
 
 extraheader=strarr(nlines)

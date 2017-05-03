@@ -16,7 +16,7 @@ FREE_LUN, lun
 ;For some reason the array starts from index 1
 weighted_ph=0
 tot=0
-
+stop
 FOR i=1,(n_elements(array)-1) DO BEGIN
 data=read_table(array[i])
 sz=size(data)

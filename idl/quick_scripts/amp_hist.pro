@@ -14,7 +14,7 @@ time=1.343
 
 weighted_amp=0
 weighted_per=0
-
+wv=0
 FOR i=1,(n_elements(array)-1) DO BEGIN
 ad=0;amps
 ade=0;amp error
@@ -76,43 +76,47 @@ weighted_amp=[temporary(weighted_amp),total(abs(ad)/(ade^2))/total(1/(ade^2))]
 
 weighted_per=[temporary(weighted_per),total(abs(pd)/(pde^2))/total(1/(pde^2))]
 
-h=findgen(n_elements(ad))*km/1000.0
+;weighted_amp=[temporary(weighted_amp),ad]
+;weighted_per=[temporary(weighted_per),pd]
 
-set_plot,'ps'
+;h=findgen(n_elements(ad))*km/1000.0
 
-
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/p_height/h_vs_p'+strtrim(i,1)+'.ps'
-
-
-plot,h,abs(pd)*1.343,xtitle='Height along structure (Mm)',ytitle='Period (T)'
-errplot,h,abs(pd)*1.343-pde*1.343,abs(pd)*1.343+pde*1.343,thick=2
-
-device,/close
-set_plot,'x'
-
-openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/p_height/p'+strtrim(i,1)+'.txt',/append
-PRINTF,1,transpose([[pd*1.343],[pde*1.343]]),FORMAT='(2F)'
-close,1
+;set_plot,'ps'
 
 
+;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/p_height/h_vs_p'+strtrim(i,1)+'.ps'
 
-set_plot,'ps'
+
+;plot,h,abs(pd)*1.343,xtitle='Height along structure (Mm)',ytitle='Period (T)'
+;errplot,h,abs(pd)*1.343-pde*1.343,abs(pd)*1.343+pde*1.343,thick=2
+
+;device,/close
+;set_plot,'x'
+
+;openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/p_height/p'+strtrim(i,1)+'.txt',/append
+;PRINTF,1,transpose([[pd*1.343],[pde*1.343]]),FORMAT='(2F)'
+;close,1
 
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/va_height/h_vs_va'+strtrim(i,1)+'.ps'
+
+;set_plot,'ps'
+
+
+;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/va_height/h_vs_va'+strtrim(i,1)+'.ps'
 
 v_a=ad*km*((2*!PI)/pd*1.343)
+;wv=[temporary(wv),v_a]
 v_a_er=v_a*sqrt((ade/ad)^2+(pde/pd)^2)
 
-plot,h,v_a,xtitle='Height along structure (Mm)',ytitle='Velocity Amplitude (km/s)'
-errplot,h,v_a-v_a_er,v_a+v_a_er,thick=2
+;plot,h,v_a,xtitle='Height along structure (Mm)',ytitle='Velocity Amplitude (km/s)'
+;errplot,h,v_a-v_a_er,v_a+v_a_er,thick=2
 
-device,/close
-set_plot,'x'
+;device,/close
+;set_plot,'x'
 
-openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/va_height/va'+strtrim(i,1)+'.txt',/append
-PRINTF,1,transpose([[v_a],[v_a_er]]),FORMAT='(2F)'
-close,1
+;openw,1,'/Users/krishnamooroogen/Documents/PHYSICS/PhD/images/va_height/va'+strtrim(i,1)+'.txt',/append
+;PRINTF,1,transpose([[v_a],[v_a_er]]),FORMAT='(2F)'
+;close,1
 
 
 ENDFOR
@@ -120,16 +124,48 @@ ENDFOR
 
 weighted_amp=weighted_amp[1:*]*km
 weighted_per=weighted_per[1:*]*1.343
-
 vel_amp=weighted_amp*((2*!PI)/weighted_per)
+print,moment(weighted_amp)
+print,moment(weighted_per)
+print,moment(vel_amp)
+print,median(weighted_amp)
+print,median(weighted_per)
+print,median(vel_amp)
 
+;stop
+;cgwindow
+;cghistoplot,weighted_amp,binsize=2,xtitle='Amplitudes (km)',ytitle='Density',output='ps',/fill,/window,charsize=1.5,charthick=1,xthick=1.7,ythick=1.7,thick=1,polycolor='sea green',datacolorname='white'
+
+plothist,weighted_amp,xhist,yhist,/autobin,/noplot
+bp=barplot(xhist,yhist,xtitle='Amplitudes (km)',ytitle='Density',histogram=1,color='black',fill_color='sea green',font_name='Helvetica',layout=[2,2,1],/curr)
+
+;est=[max(yhist),median(weighted_amp),0.1]
+;fit=gaussfit(xhist,yhist,coeff,estimates=est,sigma=errors,chisq=chi,nterm=3)
+;cgplot,xhist,fit,/window,/overplot,thick=1.5
+;vline,coeff(1),color=0,linestyle=2,thick=2,/win
 
 ;cgwindow
-;cghistoplot,weighted_amp,binsize=12,xtitle='Amplitudes (km)',ytitle='Density',output='ps',/fill,/window,charsize=1.5,charthick=1,xthick=1.7,ythick=1.7,thick=1,polycolor='sea green',datacolorname='white'
+;cghistoplot,weighted_per,binsize=2,xtitle='Period (s)',ytitle='Density',output='ps',/window,charsize=1.5,charthick=1,xthick=1.7,ythick=1.7,thick=1,/fill,polycolor='indian red',datacolorname='white'
+
+plothist,weighted_per,xhist,yhist,/autobin,/noplot
+bp1=barplot(xhist,yhist,xtitle='Period (s)',ytitle='Density',histogram=1,color='black',fill_color='indian red',font_name='Helvetica',layout=[2,2,2],/curr)
+;est=[max(yhist),median(weighted_per),0.1]
+;fit=gaussfit(xhist,yhist,coeff,estimates=est,sigma=errors,chisq=chi,nterm=3)
+;cgplot,xhist,fit,/window,/overplot,thick=1.5
+;vline,coeff(1),color=0,linestyle=2,thick=2,/win
+
 ;cgwindow
-;cghistoplot,weighted_per,binsize=20,xtitle='Period (s)',ytitle='Density',output='ps',/window,charsize=1.5,charthick=1,xthick=1.7,ythick=1.7,thick=1,/fill,polycolor='indian red',datacolorname='white'
-;cgwindow
-;cghistoplot,vel_amp,binsize=0.9,xtitle='Velocity Amplitude (km/s)',ytitle='Density',output='ps',/window,charsize=1.5,charthick=1,xthick=1.7,ythick=1.7,thick=1,/fill,polycolor='sky blue',datacolorname='white'
+;cghistoplot,vel_amp,binsize=1,xtitle='Velocity Amplitude (km/s)',ytitle='Density',output='ps',/window,charsize=1.5,charthick=1,xthick=1.7,ythick=1.7,thick=1,/fill,polycolor='sky blue',datacolorname='white'
+
+plothist,vel_amp,xhist,yhist,/autobin,/noplot
+bp2=barplot(xhist,yhist,xtitle='Velocity Amplitude (km/s)',ytitle='Density',histogram=1,color='black',fill_color='sky blue',font_name='Helvetica',layout=[2,2,4],/curr)
+;est=[max(yhist),median(weighted_per),0.1]
+;est=[max(yhist)+1000,median(vel_amp),5]
+;fit=gaussfit(xhist,yhist,coeff,estimates=est,sigma=errors,chisq=chi,nterm=3)
+;cgplot,xhist,fit,/window,/overplot,thick=1.5
+
+;vline,coeff(1),color=20,linestyle=2,thick=1,/win
+
 
 ;cd,'../../../../images/grad'
 

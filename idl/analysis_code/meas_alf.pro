@@ -38,7 +38,6 @@
 
 
 PRO meas_alf,tel=tel,ter=ter,debug=debug
-
 ;----------------------------------------------------------------------------
 ;CLOSING ANY OPEN FILES
 close,1
@@ -49,8 +48,8 @@ close,2
 sz=size(tel)
 last_time=sz(2)-1
 Mm = (0.725/16.981891892)
-tl=tel/Mm
-tl_er=ter/Mm
+tl=tel;/Mm
+tl_er=ter;/Mm
 
 ;FOR PLOTTING
 
@@ -84,14 +83,14 @@ mn=min(tl[in,last_time])
 mx=max(tl[*,last_time])
 
 cgwindow,'cgplot',len[in]*dt,tl[in,last_time]*Mm+(step*last_time)*Mm,yrange=[0,mx+step*last_time]*Mm,$
-xrange=[-17,n_elements(tl[*,last_time])+4]*dt,xst=1,xtitle='Time (s)',ytitle='Displacement (Mm)',charsize=1.5,charthick=1.9
+xrange=[-17,n_elements(tl[*,last_time])+4]*dt,xst=1,xtitle='Time (s)',ytitle='Displacement (Mm)',charsize=1.5,charthick=1.9,font=!3
 FOR i=start,last_time DO BEGIN
 in=where(tl[*,i] ne -1)
 IF i EQ 0 THEN cgplot,len[in]*dt,tl[in,i]*Mm,/window,/overplot ELSE cgplot,len[in]*dt,tl[in,i]*Mm+step*i*Mm,/window,/overplot
 IF i EQ 0 THEN cgerrplot,len[in]*dt,tl[in,i]*Mm+tl_er[in,i]*Mm,tl[in,i]*Mm-tl_er[in,i]*Mm,/addcmd,thick=0.001,width=0.005 ELSE cgerrplot,len[in]*dt,tl[in,i]*Mm+tl_er[in,i]*Mm+step*i*Mm,tl[in,i]*Mm-tl_er[in,i]*Mm+step*i*Mm,/addcmd,thick=0.001,width=0.005
 
-IF i EQ 0 THEN cgtext,in[0]*dt-7*dt,[tl[in[0],i]]*Mm -1*Mm,strtrim(i,2),/window $
-ELSE cgtext,in[0]*dt-7*dt,[tl[in[0],i]]*Mm+step*i*Mm -1*Mm,strtrim(i,2),/window
+;IF i EQ 0 THEN cgtext,in[0]*dt-7*dt,[tl[in[0],i]]*Mm -1*Mm,strtrim(i,2),/window $
+;ELSE cgtext,in[0]*dt-7*dt,[tl[in[0],i]]*Mm+step*i*Mm -1*Mm,strtrim(i,2),/window
 
 ENDFOR
 

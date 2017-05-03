@@ -23,7 +23,7 @@
 ;-----------------------------------------------------------------------------------------------
 ;Plots error coorelations and funciton of relationship
 
-pro error_test_ca,dat
+pro error_test_ca,dat,hd2,xxb,xb,use,mean_av,av_er,fit,fit2,y,err,bsx,bsy,rms_noise,c,sum_dat_im
 
 
 ;CONSTANTS
@@ -59,11 +59,11 @@ ENDFOR
 rms_noise=fltarr(s(1),s(2))
 
 ;take rms of each pixel in time
-FOR j=0, (s(1)-2) DO BEGIN
-FOR k=0, (s(2)-1) DO BEGIN
-rms_noise(j,k)=rms(decomp(j,k,*))
-ENDFOR
-ENDFOR
+;FOR j=0, (s(1)-2) DO BEGIN
+;FOR k=0, (s(2)-1) DO BEGIN
+rms_noise=rms(decomp,dimension=3)
+;ENDFOR
+;ENDFOR
 
 ;5
 ;0.01
@@ -94,8 +94,8 @@ av_er=0
 ;--------------------------------------------------------------------------------
 ;
 ;
-
-FOR i=long(1003),2000 DO BEGIN
+;1700
+FOR i=long(800),1700 DO BEGIN
 
 ind=where(hd2[i,*] ne 0,count)
 
@@ -168,9 +168,9 @@ use=where((mean_av lt 100) and (mean_av gt 0) )
 
 ;PLOTTING MEANS OF DISTRIBUTION AND FITTING FUCNTION
 ;------------------------------------------------------------------------------------------------------
-set_plot,'ps'
+;set_plot,'ps'
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/logrm_ca_refit.eps'
+;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/logrm_ca_refit.eps'
 
 !X.MARGIN=[15,3]
 !Y.MARGIN=[4,2]
@@ -179,17 +179,20 @@ plot,xb[0:*:3],mean_av[0:*:3],psym=1,xtitle='Averaged intensity',ytitle='log(Mea
 
 p=[3.5e-8,-0.00034,3]
 
-res=mpfitfun('lin_func_fit2',xb(use),mean_av(use),av_er(use),p,/quiet,dof=dof,perror=perr,bestnorm=chi)
-;res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use),yfit=fit,chisq=chi)
-fit=lin_func_fit2(xb(use),res)
+;res=mpfitfun('lin_func_fit2',xb(use),mean_av(use),av_er(use),p,/quiet,dof=dof,perror=perr,bestnorm=chi)
 
-;a=res(0)
-;b=res(1)
-;c=res(2)
+res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use),yfit=fit2,chisq=chi)
+
+;fit=lin_func_fit2(xb(use),res)
+
+a=res(0)
+b=res(1)
+c=res(2)
+
 ;d=res(3)
-
+c=coeff(1)
 loadct,2,/silent
-oplot,xb(use),fit,color=100,thick=2.5
+oplot,xb(use),fit2,color=100,thick=2.5
 errplot,xb[0:*:3],(mean_av[0:*:3]-av_er[0:*:3]),(mean_av[0:*:3]+av_er[0:*:3]),thick=2
 loadct,0,/silent
 
@@ -202,24 +205,24 @@ print,res
 ;d=string(c,Format='(3F0)')
 
 ;cgtext,5100,1.3,'y='+strtrim(a,1)+'x^2'+strtrim(b,a)+'x+'+strtrim(c,1)+'x^0.5 +'+strtrim(d,1),/data,charsize=0.7
-device,/close
+;device,/close
 
-print,chi
+;print,chi
 
-set_plot,'x'
-plot,xb(use),(mean_av(use)-fit)
+;set_plot,'x'
+;plot,xb(use),(mean_av(use)-fit)
 
-residual=(mean_av(use)-fit)
-res_pos=where(residual GT 0)
-res_neg=where(residual LT 0)
-bin=fltarr(n_elements(residual))
-bin[res_pos]=1
-bin[res_neg]=0
+;residual=(mean_av(use)-fit)
+;res_pos=where(residual GT 0)
+;res_neg=where(residual LT 0)
+;bin=fltarr(n_elements(residual))
+;bin[res_pos]=1
+;bin[res_neg]=0
 
 
-pr=r_test(bin, R = r, N0 = n0, N1 = n1)
+;pr=r_test(bin, R = r, N0 = n0, N1 = n1)
 
-print,pr[1]
+;print,pr[1]
 ;set_plot,'ps'
 
 

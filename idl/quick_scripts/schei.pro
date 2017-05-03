@@ -1,11 +1,11 @@
 pro schei,n,grad_r,grad_b,grad_rho
 
-indx=[1,2,5,6,8,9,10,11,12,14,15,17,21,22,25,26,27,28]
+indx=[1,2,5,6,8,10,11,12,14,15,17,21,22,25,26,27,28]
 ;indx=[1,2,5,6,8,9,10,11,12,14,15,17,18,20,21,22,25,26,27,28]
 
-grad_r=fltarr(18,2)
-grad_b=fltarr(18,2)
-grad_rho=fltarr(18,2)
+grad_r=fltarr(17,2)
+grad_b=fltarr(17,2)
+grad_rho=fltarr(17,2)
 
 Mm = (0.725/16.981891892)
 r_seis=read_table('r_n/seis_r_1.txt')
@@ -20,7 +20,7 @@ x=findgen(n_elements(r))*Mm
 !Y.MARGIN=[4,2]
 
 
-cgwindow,'cgplot',x,alog(r),xtitle='Height along structure (Mm)',ytitle='ln(R/R0)',charsize=1.5 ,charthick=1,xthick=1.7,ythick=1.7,thick=1.5,yrange=[-0.6,1.2],xrange=[-0.05,0.45],xstyle=1,/nodata
+;cgwindow,'cgplot',x,alog(r),xtitle='Height along structure (Mm)',ytitle='ln(R/R0)',charsize=1.5 ,charthick=1,xthick=1.7,ythick=1.7,thick=1.5,yrange=[-0.6,1.2],xrange=[-0.05,0.45],xstyle=1,/nodata
 
 
 
@@ -40,14 +40,15 @@ param = mpfitfun('lin_func_fit',x,alog(r), alog(r_er),p,/quiet,dof=dof,perror=pe
 fit=lin_func_fit(x,param)
 
 redchi=chi/dof
-print,'red chi R ',strtrim(redchi,1)
+;print,'red chi R ',strtrim(redchi,1)
 
 res=linfit(x,alog(r),measure_errors=alog(r_er),sigma=sig,prob=p,yfit=fit)
 IF p GT 0.1 THEN BEGIN
-cgplot,x,fit,/overplot,/window,linestyle=2,color=i*14
-cgplot,x,alog(r),/window,/overplot,thick=2,color=i*14
-cgerrplot,x,alog(r+r_er),alog(r-r_er),/addcmd,thick=1,width=0.005,color=i*14
-
+print,i
+plot,x,alog(r),thick=2,color=i*14
+oplot,x,fit,linestyle=2,color=i*14
+;cgerrplot,x,alog(r+r_er),alog(r-r_er),/addcmd,thick=1,width=0.005,color=i*14
+pause 
 
 grad_r[i,0]=1./res(1)
 grad_r[i,1]=1./sig(1)

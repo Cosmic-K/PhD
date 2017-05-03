@@ -1,4 +1,4 @@
-;Krishna Mooroogen.
+e;Krishna Mooroogen.
 ;Northumbria University, Solar group.
 ;krishna.mooroogen@northumbria.ac.uk
 ;PhD supervisor Richard Morton
@@ -23,8 +23,8 @@
 ;-----------------------------------------------------------------------------------------------
 ;Plots error coorelations and funciton of relationship
 
-pro error_test_ha,dat
-
+pro error_test_ha,dat,hd2,xxb,xb,use,mean_av,av_er,fit,fit2,y,err,bsx,bsy,rms_noise,c,sum_dat_im
+;need factor of 1000 to x and 0.2 to y in final 
 
 ;CONSTANTS
 ;-----------------------------------------------------------------------------------------------
@@ -56,20 +56,11 @@ atrous,1.*dat_im(*,*,j),decomposition=d,n_scales=1
 decomp(*,*,j)=unsharp(data=d(*,*,1))
 ENDFOR
 
-rms_noise=fltarr(s(1),s(2))
-
-;take rms of each pixel in time
-FOR j=0, (s(1)-2) DO BEGIN
-FOR k=0, (s(2)-1) DO BEGIN
-rms_noise(j,k)=rms(decomp(j,k,*))
-;rms_noise(j,k)=sqrt((decomp(j,k,*)^2)/n_elements(decomp(j,k,*)))
-ENDFOR
-ENDFOR
-
+rms_noise=rms(decomp,dimension=3)
 ;;0.01,5
 
 bsx=5
-bsy=0.01
+bsy=0.021
 
 ;JOINT PROB DIST OF DATA AND NOISE
 ;-----------------------------------------------------------------------------
@@ -77,7 +68,7 @@ bsy=0.01
 ln_rms = rms_noise
 
 
-hd2 = hist_2d(sum_dat_im,ln_rms,bin1=bsx,bin2=bsy,max2=4,min1=1000,max1=2500)
+hd2 = hist_2d(sum_dat_im,ln_rms,bin1=bsx,bin2=bsy,max2=2.5,min2=0.2,min1=1000,max1=2100)
 
 sz=size(hd2)
 
@@ -92,11 +83,10 @@ av_er=0
 ;
 ;
 
-FOR i=long(70),170 DO BEGIN
-
+FOR i=long(70), 180 DO BEGIN
 ind=where(hd2[i,*] ne 0,count)
 
-IF count gt 100 THEN BEGIN
+IF count gt 10 THEN BEGIN
 
 x=[temporary(x),i]
 
@@ -136,7 +126,6 @@ vline,coeff(1),color=100,linestyle=1,thick=4
 loadct,0,/silent
 ;device,/close
 ;set_plot,'x'
-
 ;cgtext,5,(max(y)/2),'red chi = '+strtrim(chi,1),CHARSIZE=0.9,/data
 
 av_er=[temporary(av_er),er_mu]
@@ -162,7 +151,7 @@ use=where((mean_av lt 100) and (mean_av gt 0) )
 
 ;PLOTTING MEANS OF DISTRIBUTION AND FITTING FUCNTION
 ;------------------------------------------------------------------------------------------------------
-set_plot,'ps'
+;set_plot,'ps'
 
 ;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/logrm.eps'
 
@@ -172,7 +161,8 @@ set_plot,'ps'
 ;plot,xb(use),mean_av(use),psym=1,xtitle='Averaged intensity',ytitle='log(Mean RMS noise)',xthick=3,ythick=3,thick=2.5,charthick=4,charsize=1.5
 
 ;res=linfit(xb(use),mean_av(use),chisqr=chi,covar=cov,sigma=sig,measure_errors=av_er(use))
-res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use),yfit=fit,chisq=chi)
+res=poly_fit(xb(use),mean_av(use),2,measure_errors=av_er(use),yfit=fit2,chisq=chi)
+
 
 c=res(0)
 b=res(1)
@@ -193,26 +183,31 @@ c=string(c,Format='(D0.3)')
 ;cgtext,450,0.2,'y='+strtrim(a,1)+'x^2'+strtrim(b,a)+'x+'+strtrim(c,1),/data
 ;device,/close
 
-set_plot,'ps'
+;set_plot,'ps'
 
-device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density.eps'
+;device,/encapsul,/color,filename='/Users/krishnamooroogen/Documents/PHYSICS/PhD/density_con.eps'
 
 !X.MARGIN=[10,3]
 !Y.MARGIN=[9,2]
 
 ;xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)]
 
-tvim,hd2^0.7,xrange=[0,bsx*sz(1)],yrange=[0,bsy*sz(2)],/rct,pcharsize=0.5,/noaxis
-axis,0,xaxis=0,charsize=0.8,xrange=[0,bsx*sz(1)],xtitle='Averaged intenstiy',xthick=1,charthick=2
-axis,0,yaxis=0,charsize=0.8,yrange=[0,bsy*sz(2)],ytitle='RMS noise',ythick=1,charthick=2
+tvim,hd2^0.7,xrange=[0,sz(1)*bsx],yrange=[0,sz(2)*bsy],/rct,pcharsize=0.5,/noaxis
+axis,0,xaxis=0,charsize=0.8,xrange=[0,bsx*sz(1)],xtitle='Averaged intenstiy'
+axis,0,yaxis=0,charsize=0.8,yrange=[0,sz(2)*bsy],ytitle='RMS noise'
 axis,xaxis=1,xthick=1,XTICKFORMAT="(A1)"
 axis,yaxis=1,ythick=1,YTICKFORMAT="(A1)"
 loadct,2,/silent
 oplot,xb(use),mean_av(use),linestyle=2,color=100,thick=4
 loadct,0,/silent
 
-device,/close
+c=coeff(1)
+;im=image(hd2^0.7)
+;c=contour(hd2^0.7,n_levels=10,/current,/over)
+;p=plot(xb(use),mean_av(use),linestyle=2,/overplot,/current)
+;stop
+;device,/close
 
-set_plot,'x'
+;set_plot,'x'
 
 END
